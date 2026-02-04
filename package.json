@@ -64,7 +64,7 @@
     "tree-sitter-python": "^0.21.0",
     "tree-sitter-rust": "^0.21.0",
     "tree-sitter-typescript": "^0.21.0",
-    "ts-morph": "^22.0.0",
+    "ts-morph": "^27.0.2",
     "winston": "^3.11.0"
   },
   "devDependencies": {
