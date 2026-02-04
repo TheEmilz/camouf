@@ -121,6 +121,9 @@ export interface BuiltinRulesConfig {
   
   /** Multi-language type safety */
   'type-safety'?: RuleLevel;
+  
+  /** Hardcoded secrets detection */
+  'hardcoded-secrets'?: RuleLevel;
 }
 
 export type RuleLevel = 'off' | 'warn' | 'error' | RuleLevelConfig;

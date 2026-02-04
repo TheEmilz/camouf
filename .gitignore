@@ -31,3 +31,6 @@ coverage/
 .eslintcache
 *.tsbuildinfo
 node_modules
+
+#docs
+INTERNAL_DOCS.md
