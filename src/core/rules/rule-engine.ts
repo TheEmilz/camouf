@@ -118,9 +118,9 @@ export class RuleEngine {
   /**
    * Validate the entire project
    */
-  async validate(graph: DependencyGraph): Promise<Violation[]> {
+  async validate(graph: DependencyGraph, fileContents?: Map<string, string>): Promise<Violation[]> {
     const violations: Violation[] = [];
-    const context = this.createContext(graph);
+    const context = this.createContext(graph, undefined, fileContents);
 
     for (const ruleId of this.enabledRules) {
       const rule = this.rules.get(ruleId);
@@ -149,9 +149,9 @@ export class RuleEngine {
   /**
    * Validate a single file
    */
-  async validateFile(filePath: string, graph: DependencyGraph): Promise<Violation[]> {
+  async validateFile(filePath: string, graph: DependencyGraph, fileContents?: Map<string, string>): Promise<Violation[]> {
     const violations: Violation[] = [];
-    const context = this.createContext(graph, filePath);
+    const context = this.createContext(graph, filePath, fileContents);
 
     for (const ruleId of this.enabledRules) {
       const rule = this.rules.get(ruleId);
@@ -220,11 +220,12 @@ export class RuleEngine {
   /**
    * Create rule context
    */
-  private createContext(graph: DependencyGraph, focusFile?: string): RuleContext {
+  private createContext(graph: DependencyGraph, focusFile?: string, fileContents?: Map<string, string>): RuleContext {
     return {
       config: this.config,
       graph,
       focusFile,
+      fileContents,
       getNodeData: (id: string) => graph.node(id),
       getEdgeData: (source: string, target: string) => graph.edge(source, target),
       getIncomingEdges: (id: string) => graph.inEdges(id) || [],

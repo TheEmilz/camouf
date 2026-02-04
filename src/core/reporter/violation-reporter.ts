@@ -10,7 +10,7 @@ import { Violation, ViolationSeverity } from '../../types/core.types.js';
 import { Logger } from '../logger.js';
 
 interface ReporterOptions {
-  format?: 'text' | 'json' | 'sarif';
+  format?: 'text' | 'json' | 'sarif' | 'vscode';
   outputPath?: string;
 }
 
@@ -94,6 +94,8 @@ export class ViolationReporter {
         return this.generateJsonReport(violations);
       case 'sarif':
         return this.generateSarifReport(violations);
+      case 'vscode':
+        return this.generateVSCodeReport(violations);
       default:
         return this.generateTextReport(violations);
     }
@@ -330,6 +332,71 @@ export class ViolationReporter {
         return 'warning';
       case 'info':
         return 'note';
+    }
+  }
+
+  /**
+   * Generate VS Code compatible single-line output for problem matcher
+   * Format: file(line,column): severity: message [ruleId]
+   * This matches the standard GCC/MSBuild pattern that VS Code understands
+   */
+  private generateVSCodeReport(violations: Violation[]): string {
+    const lines: string[] = [];
+    
+    for (const violation of violations) {
+      const file = this.getRelativePath(violation.file);
+      const line = violation.line || 1;
+      const column = violation.column || 1;
+      const severity = violation.severity;
+      const message = violation.message.replace(/\n/g, ' ');
+      const ruleId = violation.ruleId;
+      
+      // Format: file(line,column): severity ruleId: message
+      lines.push(`${file}(${line},${column}): ${severity} ${ruleId}: ${message}`);
+    }
+
+    // Add summary at the end
+    const { total, errors, warnings, info } = this.summary;
+    lines.push('');
+    lines.push(`=== Camouf: ${total} problem(s) found (${errors} errors, ${warnings} warnings, ${info} info) ===`);
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Report violations in VS Code format to stdout (for watch mode)
+   */
+  reportVSCode(violations: Violation[]): void {
+    this.violations = violations;
+    this.updateSummary(violations);
+    console.log(this.generateVSCodeReport(violations));
+  }
+
+  /**
+   * Report incremental violations in VS Code format
+   */
+  reportIncrementalVSCode(filePath: string, violations: Violation[]): void {
+    // Remove old violations for this file
+    this.violations = this.violations.filter(v => v.file !== filePath);
+    
+    // Add new violations
+    this.violations.push(...violations);
+    this.updateSummary(this.violations);
+
+    // Output only violations for the changed file
+    for (const violation of violations) {
+      const file = this.getRelativePath(violation.file);
+      const line = violation.line || 1;
+      const column = violation.column || 1;
+      const severity = violation.severity;
+      const message = violation.message.replace(/\n/g, ' ');
+      const ruleId = violation.ruleId;
+      
+      console.log(`${file}(${line},${column}): ${severity} ${ruleId}: ${message}`);
+    }
+    
+    if (violations.length === 0) {
+      console.log(`${this.getRelativePath(filePath)}: ✓ No violations`);
     }
   }
 }

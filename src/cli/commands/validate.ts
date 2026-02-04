@@ -52,7 +52,8 @@ export const validateCommand = new Command('validate')
 
       // Validate
       spinner.start('Running validation...');
-      const violations = await ruleEngine.validate(graph);
+      const fileContents = scanner.getFileContents();
+      const violations = await ruleEngine.validate(graph, fileContents);
       
       // Auto-fix if requested
       if (options.fix) {

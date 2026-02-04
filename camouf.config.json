@@ -1,0 +1,98 @@
+{
+  "name": "camouf",
+  "root": ".",
+  "languages": [
+    "typescript"
+  ],
+  "layers": [
+    {
+      "name": "presentation",
+      "type": "presentation",
+      "directories": [
+        "src"
+      ],
+      "allowedDependencies": [
+        "application",
+        "shared"
+      ]
+    },
+    {
+      "name": "application",
+      "type": "application",
+      "directories": [
+        "src"
+      ],
+      "allowedDependencies": [
+        "domain",
+        "infrastructure",
+        "shared"
+      ]
+    },
+    {
+      "name": "domain",
+      "type": "domain",
+      "directories": [
+        "src/domain"
+      ],
+      "allowedDependencies": [
+        "shared"
+      ]
+    },
+    {
+      "name": "infrastructure",
+      "type": "infrastructure",
+      "directories": [
+        "src/infrastructure"
+      ],
+      "allowedDependencies": [
+        "domain",
+        "application",
+        "shared"
+      ]
+    },
+    {
+      "name": "shared",
+      "type": "shared",
+      "directories": [
+        "src"
+      ],
+      "allowedDependencies": []
+    }
+  ],
+  "directories": {
+    "client": [
+      "src"
+    ],
+    "server": [
+      "src"
+    ],
+    "shared": [
+      "src"
+    ]
+  },
+  "rules": {
+    "builtin": {
+      "layer-dependencies": "error",
+      "circular-dependencies": "warn",
+      "performance-antipatterns": "warn",
+      "type-safety": "warn"
+    }
+  },
+  "patterns": {
+    "include": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.mts",
+      "**/*.cts"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.git/**",
+      "**/coverage/**",
+      "**/*.test.*",
+      "**/*.spec.*"
+    ]
+  }
+}
