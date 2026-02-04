@@ -1,11 +1,14 @@
+
+[![npm version](https://img.shields.io/npm/v/camouf.svg)](https://www.npmjs.com/package/camouf)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 # Camouf
 
 **Real-time Architecture Monitoring CLI Tool**
 
 Camouf is a powerful, multi-language CLI tool for monitoring and enforcing software architecture in real-time. It detects architectural violations, anti-patterns, and provides actionable suggestions to maintain code quality.
 
-[![npm version](https://img.shields.io/npm/v/camouf.svg)](https://www.npmjs.com/package/camouf)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 
 ## Features
 
