@@ -1,6 +1,6 @@
 {
   "name": "camouf",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Real-time architecture monitoring CLI tool with multi-language support",
   "main": "dist/index.js",
   "type": "module",
