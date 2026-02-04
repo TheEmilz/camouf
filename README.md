@@ -1,6 +1,7 @@
 
 [![npm version](https://img.shields.io/npm/v/camouf.svg)](https://www.npmjs.com/package/camouf)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml/badge.svg)](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml)
 
 # Camouf
 
@@ -8,17 +9,23 @@
 
 Camouf is a powerful, multi-language CLI tool for monitoring and enforcing software architecture in real-time. It detects architectural violations, anti-patterns, and provides actionable suggestions to maintain code quality.
 
-
-
 ## Features
 
 - **Real-time Monitoring**: Watch mode for continuous architecture validation
 - **Multi-language Support**: TypeScript, JavaScript, Python, Java, Go, Rust
 - **Advanced Analysis**: Circular dependency detection, coupling metrics, hotspot identification
-- **10 Built-in Rules**: Comprehensive rule set for modern architectures
+- **11 Built-in Rules**: Comprehensive rule set for modern architectures
+- **Security Scanning**: Detects hardcoded secrets, API keys, and credentials
 - **Multiple Report Formats**: HTML, JSON, Markdown, SARIF
 - **IDE Integration**: SARIF export for VS Code and other editors
 - **Highly Configurable**: JSON, YAML, or JavaScript configuration
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md)
+- [Configuring Rules](docs/configuring-rules.md)
+- [CI/CD Integration](docs/ci-cd-integration.md)
+- [Changelog](CHANGELOG.md)
 
 ## Installation
 
@@ -204,6 +211,7 @@ Camouf supports multiple configuration formats:
 
 | Rule | Description | Default |
 |------|-------------|---------|
+| `hardcoded-secrets` | Detects hardcoded API keys, passwords, and tokens | `error` |
 | `data-flow-integrity` | Validates data flow and input sanitization | `error` |
 | `security-context` | Validates authentication and authorization | `error` |
 
