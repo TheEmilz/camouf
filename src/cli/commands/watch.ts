@@ -21,8 +21,10 @@ export const watchCommand = new Command('watch')
   .option('--debounce <ms>', 'Debounce time for file changes (default: 300)', '300')
   .option('--rules <rules>', 'Comma-separated list of rules to run')
   .option('--ignore <patterns>', 'Additional patterns to ignore')
+  .option('--format <format>', 'Output format (text, vscode)', 'text')
   .action(async (options) => {
-    const spinner = ora('Loading configuration...').start();
+    const isVSCodeFormat = options.format === 'vscode';
+    const spinner = isVSCodeFormat ? null : ora('Loading configuration...').start();
 
     try {
       // Load configuration
@@ -30,11 +32,12 @@ export const watchCommand = new Command('watch')
       const config = await configManager.loadConfig(options.config);
       
       if (!config) {
-        spinner.fail('No configuration found. Run "camouf init" first.');
+        if (spinner) spinner.fail('No configuration found. Run "camouf init" first.');
+        else console.error('ERROR: No configuration found. Run "camouf init" first.');
         process.exit(1);
       }
 
-      spinner.text = 'Initializing components...';
+      if (spinner) spinner.text = 'Initializing components...';
 
       // Initialize components
       const scanner = new ProjectScanner(config);
@@ -53,38 +56,68 @@ export const watchCommand = new Command('watch')
 
       // Initial scan
       if (options.initial !== false) {
-        spinner.text = 'Performing initial scan...';
+        if (spinner) spinner.text = 'Performing initial scan...';
         const graph = await scanner.scan();
         
-        spinner.text = 'Running initial validation...';
-        const violations = await ruleEngine.validate(graph);
+        if (spinner) spinner.text = 'Running initial validation...';
+        const fileContents = scanner.getFileContents();
+        const violations = await ruleEngine.validate(graph, fileContents);
         
-        spinner.stop();
-        reporter.reportInitial(violations);
+        if (spinner) spinner.stop();
+        
+        if (isVSCodeFormat) {
+          reporter.reportVSCode(violations);
+        } else {
+          reporter.reportInitial(violations);
+        }
       } else {
-        spinner.stop();
+        if (spinner) spinner.stop();
       }
 
       // Setup file watcher
-      Logger.info('\n👁️  Watching for changes...\n');
-      Logger.info('Press Ctrl+C to stop\n');
+      if (!isVSCodeFormat) {
+        Logger.info('\n👁️  Watching for changes...\n');
+        Logger.info('Press Ctrl+C to stop\n');
+      } else {
+        console.log('>>> CAMOUF WATCH STARTED <<<');
+      }
 
       watcher.on('change', async (filePath, changeType) => {
-        Logger.debug(`File ${changeType}: ${filePath}`);
+        if (!isVSCodeFormat) {
+          Logger.info(`\n📝 File ${changeType}: ${filePath}`);
+        }
         
         try {
           // Incremental analysis
           const updatedGraph = await scanner.updateFile(filePath, changeType);
-          const violations = await ruleEngine.validateFile(filePath, updatedGraph);
+          const fileContents = scanner.getFileContents();
+          const violations = await ruleEngine.validateFile(filePath, updatedGraph, fileContents);
           
-          reporter.reportIncremental(filePath, violations);
+          if (isVSCodeFormat) {
+            reporter.reportIncrementalVSCode(filePath, violations);
+          } else {
+            if (violations.length > 0) {
+              Logger.info(`   Found ${violations.length} violation(s):`);
+            } else {
+              Logger.info(`   ✅ No violations found`);
+            }
+            reporter.reportIncremental(filePath, violations);
+          }
         } catch (error) {
-          Logger.error(`Error analyzing ${filePath}: ${(error as Error).message}`);
+          if (isVSCodeFormat) {
+            console.error(`camouf: Error analyzing ${filePath}: ${(error as Error).message}`);
+          } else {
+            Logger.error(`Error analyzing ${filePath}: ${(error as Error).message}`);
+          }
         }
       });
 
       watcher.on('error', (error) => {
-        Logger.error(`Watcher error: ${error.message}`);
+        if (isVSCodeFormat) {
+          console.error(`camouf: Watcher error: ${error.message}`);
+        } else {
+          Logger.error(`Watcher error: ${error.message}`);
+        }
       });
 
       // Start watching
@@ -92,18 +125,28 @@ export const watchCommand = new Command('watch')
 
       // Handle graceful shutdown
       process.on('SIGINT', async () => {
-        Logger.info('\n\nStopping file watcher...');
+        if (!isVSCodeFormat) {
+          Logger.info('\n\nStopping file watcher...');
+        }
         await watcher.stop();
         
         const summary = reporter.getSummary();
-        Logger.info(`\nSession summary: ${summary.total} violations found`);
-        Logger.info(`  Errors: ${summary.errors}, Warnings: ${summary.warnings}, Info: ${summary.info}\n`);
+        if (!isVSCodeFormat) {
+          Logger.info(`\nSession summary: ${summary.total} violations found`);
+          Logger.info(`  Errors: ${summary.errors}, Warnings: ${summary.warnings}, Info: ${summary.info}\n`);
+        } else {
+          console.log(`>>> CAMOUF WATCH STOPPED: ${summary.total} total violations <<<`);
+        }
         
         process.exit(0);
       });
 
     } catch (error) {
-      spinner.fail(`Watch failed: ${(error as Error).message}`);
+      if (spinner) {
+        spinner.fail(`Watch failed: ${(error as Error).message}`);
+      } else {
+        console.error(`camouf: Watch failed: ${(error as Error).message}`);
+      }
       process.exit(1);
     }
   });

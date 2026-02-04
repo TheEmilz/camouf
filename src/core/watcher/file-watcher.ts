@@ -35,41 +35,53 @@ export class FileWatcher extends EventEmitter {
    * Start watching for file changes
    */
   async start(): Promise<void> {
-    const watchPatterns = this.config.patterns.include.map(pattern => 
-      path.join(this.config.root, pattern)
-    );
+    return new Promise((resolve) => {
+      const watchPatterns = this.config.patterns.include.map(pattern => 
+        path.join(this.config.root, pattern)
+      );
 
-    const ignorePatterns = [
-      ...this.config.patterns.exclude,
-      ...this.options.additionalIgnore || [],
-    ];
+      const ignorePatterns = [
+        ...this.config.patterns.exclude,
+        ...this.options.additionalIgnore || [],
+      ];
 
-    Logger.debug(`Starting file watcher on ${this.config.root}`);
-    Logger.debug(`Watch patterns: ${watchPatterns.join(', ')}`);
-    Logger.debug(`Ignore patterns: ${ignorePatterns.join(', ')}`);
+      Logger.info(`Starting file watcher on ${this.config.root}`);
+      Logger.info(`Watch patterns: ${watchPatterns.join(', ')}`);
+      Logger.info(`Ignore patterns: ${ignorePatterns.join(', ')}`);
 
-    this.watcher = chokidar.watch(watchPatterns, {
-      ignored: ignorePatterns,
-      persistent: true,
-      ignoreInitial: true,
-      awaitWriteFinish: {
-        stabilityThreshold: 100,
-        pollInterval: 50,
-      },
-      usePolling: false,
-      interval: 100,
-      binaryInterval: 300,
-    });
-
-    this.watcher
-      .on('add', (filePath) => this.handleFileChange(filePath, 'add'))
-      .on('change', (filePath) => this.handleFileChange(filePath, 'change'))
-      .on('unlink', (filePath) => this.handleFileChange(filePath, 'unlink'))
-      .on('error', (error) => this.emit('error', error))
-      .on('ready', () => {
-        Logger.debug('File watcher ready');
-        this.emit('ready');
+      this.watcher = chokidar.watch(watchPatterns, {
+        ignored: ignorePatterns,
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: {
+          stabilityThreshold: 500,
+          pollInterval: 200,
+        },
+        usePolling: true,  // Enable polling for better Windows compatibility
+        interval: 500,     // Increased for Windows
+        binaryInterval: 500,
       });
+
+      this.watcher
+        .on('add', (filePath) => {
+          Logger.info(`[CHOKIDAR] File added: ${filePath}`);
+          this.handleFileChange(filePath, 'add');
+        })
+        .on('change', (filePath) => {
+          Logger.info(`[CHOKIDAR] File changed: ${filePath}`);
+          this.handleFileChange(filePath, 'change');
+        })
+        .on('unlink', (filePath) => {
+          Logger.info(`[CHOKIDAR] File removed: ${filePath}`);
+          this.handleFileChange(filePath, 'unlink');
+        })
+        .on('error', (error) => this.emit('error', error))
+        .on('ready', () => {
+          Logger.info('[CHOKIDAR] File watcher ready and listening');
+          this.emit('ready');
+          resolve(); // Resolve when watcher is ready
+        });
+    });
   }
 
   /**
@@ -140,6 +152,7 @@ export class FileWatcher extends EventEmitter {
    * Emit change event
    */
   private emitChange(filePath: string, changeType: 'add' | 'change' | 'unlink'): void {
+    Logger.info(`[FileWatcher] Emitting change event: ${changeType} - ${filePath}`);
     const event: FileChangeEvent = {
       path: filePath,
       type: changeType,

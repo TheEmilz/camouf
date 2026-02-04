@@ -17,7 +17,7 @@ Camouf is a powerful, multi-language CLI tool for monitoring and enforcing softw
 - **12 Built-in Rules**: Comprehensive rule set for modern architectures
 - **Security Scanning**: Detects hardcoded secrets, API keys, and credentials
 - **Multiple Report Formats**: HTML, JSON, Markdown, SARIF
-- **IDE Integration**: SARIF export for VS Code and other editors
+- **VS Code Integration**: Real-time Problems panel integration with custom tasks
 - **Highly Configurable**: JSON, YAML, or JavaScript configuration
 
 ## Documentation
@@ -55,7 +55,7 @@ npx camouf analyze
 camouf init
 ```
 
-This creates a `camouf.config.json` file with sensible defaults.
+This creates a `camouf.config.json` file with sensible defaults and sets up VS Code integration.
 
 ### 2. Run Analysis
 
@@ -68,6 +68,17 @@ camouf analyze
 ```bash
 camouf watch
 ```
+
+### 4. VS Code Integration (Recommended)
+
+After running `camouf init`, you get automatic VS Code integration:
+
+1. Press `Ctrl+Shift+B` (or `Cmd+Shift+B` on Mac)
+2. Select **"camouf: Validate"** for one-time scan
+3. Select **"camouf: Watch"** for continuous monitoring
+4. Open the **Problems panel** (`Ctrl+Shift+M`) to see violations
+
+Violations will appear directly in VS Code with clickable file links!
 
 ## Commands
 
@@ -108,6 +119,7 @@ camouf watch [options]
 Options:
   -c, --config <path>   Path to configuration file
   --debounce <ms>       Debounce time in milliseconds (default: 300)
+  --format <format>     Output format: text (default), vscode
 ```
 
 ### `camouf validate`
@@ -119,6 +131,7 @@ camouf validate [options]
 
 Options:
   -c, --config <path>   Path to configuration file
+  --format <format>     Output format: text (default), json, sarif, vscode
   --strict              Fail on warnings
   --bail                Exit on first error
 ```
@@ -247,6 +260,80 @@ Static Analysis Results Interchange Format for IDE integration.
 
 ### Markdown
 Documentation-friendly format for pull requests.
+
+## VS Code Integration
+
+Camouf integrates seamlessly with VS Code's Problems panel for real-time violation feedback.
+
+### Setup
+
+When you run `camouf init`, it automatically creates:
+- `.vscode/tasks.json` - Build tasks with problem matchers
+- `.vscode/settings.json` - Optimal settings for Camouf
+
+### Using Camouf in VS Code
+
+#### Option 1: Run Tasks (Recommended)
+
+1. Press `Ctrl+Shift+B` (Windows/Linux) or `Cmd+Shift+B` (Mac)
+2. Select one of the tasks:
+   - **camouf: Validate** - One-time scan, results in Problems panel
+   - **camouf: Watch** - Continuous monitoring (background task)
+
+3. Open the Problems panel: `Ctrl+Shift+M`
+
+#### Option 2: Terminal Commands
+
+```bash
+# One-time validation with VS Code output format
+npx camouf validate --format vscode
+
+# Watch mode with VS Code output format  
+npx camouf watch --format vscode
+```
+
+### Output Example
+
+Violations appear in the Problems panel with:
+- Severity icon (error/warning/info)
+- File location (clickable link)
+- Rule ID and message
+- Suggestion for fix
+
+```
+test.ts(10,1): error hardcoded-secrets: AWS Access Key ID detected
+src/api.ts(45,1): warning performance-antipatterns: N+1 query pattern detected
+```
+
+### Manual Tasks Setup
+
+If you didn't run `camouf init` or need to add tasks manually, create `.vscode/tasks.json`:
+
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "camouf: Validate",
+      "type": "shell",
+      "command": "npx camouf validate --format vscode",
+      "problemMatcher": {
+        "owner": "camouf",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.+)\\((\\d+),(\\d+)\\):\\s+(error|warning|info)\\s+([^:]+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "code": 5,
+          "message": 6
+        }
+      }
+    }
+  ]
+}
+```
 
 ## CI/CD Integration
 

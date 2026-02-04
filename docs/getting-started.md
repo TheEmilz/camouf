@@ -6,6 +6,7 @@ This guide will walk you through installing and using Camouf for real-time archi
 
 - Node.js 18 or higher
 - npm or yarn
+- VS Code (recommended for best experience)
 
 ## Installation
 
@@ -35,8 +36,9 @@ This interactive wizard will:
 - Detect your project type and languages
 - Set up default layer configurations
 - Enable recommended rules
+- **Create VS Code tasks for Problems panel integration**
 
-A `camouf.config.json` file will be created.
+A `camouf.config.json` file and `.vscode/tasks.json` will be created.
 
 ### 2. Run Your First Validation
 
@@ -55,6 +57,21 @@ camouf watch
 ```
 
 Camouf will now monitor file changes and report violations instantly.
+
+### 4. VS Code Integration (Recommended)
+
+After running `camouf init`, use VS Code's Problems panel:
+
+1. **Press `Ctrl+Shift+B`** (or `Cmd+Shift+B` on Mac)
+2. Select **"camouf: Validate"** for one-time scan
+3. Or select **"camouf: Watch"** for continuous monitoring
+4. **Open Problems panel**: `Ctrl+Shift+M` (or `Cmd+Shift+M`)
+
+Violations appear with:
+- ⛔ Error/Warning/Info severity
+- Clickable file location
+- Rule ID and descriptive message
+- Suggestion for fix
 
 ## Example Output
 
@@ -135,3 +152,29 @@ Here's a minimal `camouf.config.json`:
 - [Understanding Layer Architecture](./layer-architecture.md)
 - [Creating Custom Rules](./custom-rules.md)
 - [CI/CD Integration](./ci-cd-integration.md)
+
+## Troubleshooting
+
+### Problems panel not showing violations
+
+Make sure you're using the `--format vscode` flag:
+
+```bash
+npx camouf validate --format vscode
+```
+
+Or use the pre-configured tasks created by `camouf init`.
+
+### Tasks not appearing in VS Code
+
+1. Reload VS Code window: `Ctrl+Shift+P` → "Reload Window"
+2. Or run `camouf init --force` to regenerate `.vscode/tasks.json`
+
+### Watch mode not detecting file changes
+
+On Windows, file watching may require polling. If you experience issues:
+
+```bash
+# In camouf.config.json, ensure polling is enabled (default)
+npx camouf watch --format vscode
+```

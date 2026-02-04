@@ -3,6 +3,7 @@
  * 
  * Initializes a new Camouf configuration in the current project.
  * Creates camouf.config.json with default settings.
+ * Creates .vscode/tasks.json for real-time Problems integration.
  */
 
 import { Command } from 'commander';
@@ -11,6 +12,8 @@ import { Logger } from '../../core/logger.js';
 import { ProjectDetector } from '../../core/scanner/project-detector.js';
 import inquirer from 'inquirer';
 import ora from 'ora';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export const initCommand = new Command('init')
   .description('Initialize Camouf configuration in the current project')
@@ -99,14 +102,142 @@ export const initCommand = new Command('init')
       await configManager.writeConfig(config);
       spinner.succeed('Configuration written to camouf.config.json');
 
+      // Create VS Code integration for real-time Problems
+      spinner.start('Setting up VS Code integration...');
+      await createVSCodeIntegration(process.cwd());
+      spinner.succeed('VS Code integration configured');
+
       Logger.success('\n✨ Camouf initialized successfully!');
       Logger.info('\nNext steps:');
       Logger.info('  1. Review and customize camouf.config.json');
       Logger.info('  2. Run "camouf validate" to check your architecture');
-      Logger.info('  3. Run "camouf watch" to start real-time monitoring\n');
+      Logger.info('  3. For real-time Problems in VS Code:');
+      Logger.info('     - Press Ctrl+Shift+B and select "camouf: Watch"');
+      Logger.info('     - Or run Terminal > Run Task > camouf: Watch');
+      Logger.info('  4. Violations will appear in the Problems panel (Ctrl+Shift+M)\n');
 
     } catch (error) {
       spinner.fail(`Initialization failed: ${(error as Error).message}`);
       process.exit(1);
     }
   });
+
+/**
+ * Create VS Code integration files for real-time Problems panel
+ */
+async function createVSCodeIntegration(projectRoot: string): Promise<void> {
+  const vscodeDir = path.join(projectRoot, '.vscode');
+  
+  // Create .vscode directory if it doesn't exist
+  if (!fs.existsSync(vscodeDir)) {
+    fs.mkdirSync(vscodeDir, { recursive: true });
+  }
+
+  // Tasks configuration with problem matcher
+  const tasksConfig = {
+    version: '2.0.0',
+    tasks: [
+      {
+        label: 'camouf: Validate',
+        type: 'shell',
+        command: 'npx camouf validate --format vscode',
+        group: 'build',
+        presentation: {
+          reveal: 'silent',
+          panel: 'dedicated',
+          clear: true
+        },
+        problemMatcher: {
+          owner: 'camouf',
+          fileLocation: ['relative', '${workspaceFolder}'],
+          pattern: {
+            regexp: '^(.+)\\((\\d+),(\\d+)\\):\\s+(error|warning|info)\\s+([^:]+):\\s+(.*)$',
+            file: 1,
+            line: 2,
+            column: 3,
+            severity: 4,
+            code: 5,
+            message: 6
+          }
+        }
+      },
+      {
+        label: 'camouf: Watch',
+        type: 'shell',
+        command: 'npx camouf watch --format vscode',
+        group: 'build',
+        isBackground: true,
+        presentation: {
+          reveal: 'always',
+          panel: 'dedicated'
+        },
+        problemMatcher: {
+          owner: 'camouf',
+          fileLocation: ['relative', '${workspaceFolder}'],
+          background: {
+            activeOnStart: true,
+            beginsPattern: '>>> CAMOUF WATCH STARTED <<<',
+            endsPattern: '>>> CAMOUF WATCH STOPPED'
+          },
+          pattern: {
+            regexp: '^(.+)\\((\\d+),(\\d+)\\):\\s+(error|warning|info)\\s+([^:]+):\\s+(.*)$',
+            file: 1,
+            line: 2,
+            column: 3,
+            severity: 4,
+            code: 5,
+            message: 6
+          }
+        }
+      }
+    ]
+  };
+
+  const tasksPath = path.join(vscodeDir, 'tasks.json');
+  
+  // Merge with existing tasks.json if it exists
+  let existingTasks: { version?: string; tasks?: unknown[] } = { version: '2.0.0', tasks: [] };
+  if (fs.existsSync(tasksPath)) {
+    try {
+      existingTasks = JSON.parse(fs.readFileSync(tasksPath, 'utf-8'));
+    } catch {
+      // If parsing fails, start fresh
+    }
+  }
+
+  // Remove existing camouf tasks
+  const otherTasks = (existingTasks.tasks || []).filter(
+    (task: unknown) => !(task as { label?: string }).label?.startsWith('camouf:')
+  );
+
+  // Merge tasks
+  const mergedTasks = {
+    version: '2.0.0',
+    tasks: [...otherTasks, ...tasksConfig.tasks]
+  };
+
+  fs.writeFileSync(tasksPath, JSON.stringify(mergedTasks, null, 2));
+
+  // Create settings.json for better integration
+  const settingsPath = path.join(vscodeDir, 'settings.json');
+  let existingSettings: Record<string, unknown> = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      existingSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    } catch {
+      // If parsing fails, start fresh
+    }
+  }
+
+  // Add camouf-related settings
+  const camoufSettings = {
+    ...existingSettings,
+    'task.autoDetect': 'on',
+    'task.problemMatchers.neverPrompt': {
+      ...(existingSettings['task.problemMatchers.neverPrompt'] as Record<string, boolean> || {}),
+      'camouf': true
+    }
+  };
+
+  fs.writeFileSync(settingsPath, JSON.stringify(camoufSettings, null, 2));
+}

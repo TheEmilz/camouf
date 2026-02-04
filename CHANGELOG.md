@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-02-04
+
+### Added
+- **VS Code Problems panel integration**
+  - `camouf init` now creates `.vscode/tasks.json` with pre-configured tasks
+  - New `--format vscode` option for `validate` and `watch` commands
+  - Output format compatible with VS Code problem matchers
+  - Violations appear directly in Problems panel with clickable file links
+
+### Changed
+- `camouf init` now also creates `.vscode/settings.json` with optimal settings
+- `hardcoded-secrets` rule: **Removed exclusions for test/mock/fixture files**
+  - AI agents often hide real secrets in files named "test", "mock", "example"
+  - All files are now scanned regardless of naming patterns
+- Added more secret detection patterns:
+  - Anthropic API keys (`sk-ant-*`)
+  - OpenAI project keys (`sk-proj-*`)
+  - Hugging Face tokens (`hf_*`)
+  - Discord bot tokens
+  - Firebase configuration
+  - Vercel/Netlify tokens
+  - Railway tokens
+
 ## [0.2.3] - 2026-02-04
 
 ### Improved

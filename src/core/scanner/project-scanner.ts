@@ -36,6 +36,7 @@ export class ProjectScanner {
   private parserRegistry: ParserRegistry;
   private graph: DependencyGraph;
   private fileCache: Map<string, ParsedFile> = new Map();
+  private fileContents: Map<string, string> = new Map();  // Store file contents for rules
 
   constructor(config: CamoufConfig) {
     this.config = config;
@@ -74,6 +75,7 @@ export class ProjectScanner {
       // Remove node and all edges
       this.graph.removeNode(relativePath);
       this.fileCache.delete(filePath);
+      this.fileContents.delete(relativePath);
       Logger.debug(`Removed ${relativePath} from graph`);
     } else {
       // Parse the file
@@ -92,8 +94,9 @@ export class ProjectScanner {
         const content = await fs.readFile(filePath, 'utf-8');
         const parsedFile = await parser.parse(projectFile, content);
         
-        // Update cache
+        // Update cache and content
         this.fileCache.set(filePath, parsedFile);
+        this.fileContents.set(relativePath, content);
 
         // Remove old edges from this file
         const oldEdges = this.graph.outEdges(relativePath);
@@ -130,6 +133,13 @@ export class ProjectScanner {
    */
   getParsedFile(filePath: string): ParsedFile | undefined {
     return this.fileCache.get(filePath);
+  }
+
+  /**
+   * Get all file contents (for rules that need source code)
+   */
+  getFileContents(): Map<string, string> {
+    return this.fileContents;
   }
 
   /**
@@ -175,8 +185,12 @@ export class ProjectScanner {
             const content = await fs.readFile(filePath, 'utf-8');
             const parsedFile = await parser.parse(projectFile, content);
             
-            // Cache the parsed file
+            // Cache the parsed file and content
             this.fileCache.set(filePath, parsedFile);
+            
+            // Store content with relative path for rules
+            const relativePath = path.relative(this.config.root, filePath);
+            this.fileContents.set(relativePath, content);
             
             return parsedFile;
           } catch (error) {

@@ -31,11 +31,12 @@ export class HardcodedSecretsRule implements IRule {
   readonly severity = 'error' as const;
   readonly tags = ['security', 'secrets', 'credentials', 'best-practices'];
   readonly category = 'security' as const;
+  readonly supportsIncremental = true;  // Enable real-time checking
 
   private config: HardcodedSecretsConfig = {
     enabled: true,
     severity: 'error',
-    ignorePaths: ['test', 'spec', 'mock', 'fixture', 'example', '__test__', '.test.', '.spec.'],
+    ignorePaths: [],  // Intentionally empty: AI agents often hide secrets in test/mock files
     minSecretLength: 8,
     checkEnvAssignments: true,
   };
@@ -60,8 +61,23 @@ export class HardcodedSecretsRule implements IRule {
     },
     {
       name: 'OpenAI API Key',
-      pattern: /sk-[A-Za-z0-9]{20,}T3BlbkFJ[A-Za-z0-9]{20,}/g,
+      pattern: /sk-(?:proj-)?[A-Za-z0-9]{20,}/g,
       description: 'OpenAI API key detected',
+    },
+    {
+      name: 'Anthropic API Key',
+      pattern: /sk-ant-[A-Za-z0-9_-]{40,}/g,
+      description: 'Anthropic API key detected',
+    },
+    {
+      name: 'Azure OpenAI Key',
+      pattern: /[A-Fa-f0-9]{32}/g,
+      description: 'Potential Azure API key detected (32-char hex)',
+    },
+    {
+      name: 'Hugging Face Token',
+      pattern: /hf_[A-Za-z0-9]{34,}/g,
+      description: 'Hugging Face API token detected',
     },
     {
       name: 'Stripe API Key',
@@ -202,26 +218,69 @@ export class HardcodedSecretsRule implements IRule {
       pattern: /['"`]?(?:token|access[_-]?token|refresh[_-]?token)['"`]?\s*[:=]\s*['"`]([A-Za-z0-9_-]{20,})['"`]/gi,
       description: 'Hardcoded token detected',
     },
+
+    // AI Agent common patterns - these are often used to "hide" real secrets
+    {
+      name: 'Variable with Secret Value',
+      pattern: /(?:const|let|var)\s+(?:[A-Z_]*(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|AUTH)[A-Z_]*)\s*=\s*['"`]([^'"`]{8,})['"`]/g,
+      description: 'Variable name suggests sensitive value',
+    },
+    {
+      name: 'Supabase Key',
+      pattern: /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,
+      description: 'Supabase anon/service key detected (JWT format)',
+    },
+    {
+      name: 'Discord Token',
+      pattern: /[MN][A-Za-z0-9]{23,}\.[A-Za-z0-9-_]{6}\.[A-Za-z0-9-_]{27}/g,
+      description: 'Discord bot token detected',
+    },
+    {
+      name: 'Telegram Bot Token',
+      pattern: /\d{8,10}:[A-Za-z0-9_-]{35}/g,
+      description: 'Telegram bot token detected',
+    },
+    {
+      name: 'Replicate API Token',
+      pattern: /r8_[A-Za-z0-9]{40}/g,
+      description: 'Replicate API token detected',
+    },
+    {
+      name: 'Linear API Key',
+      pattern: /lin_api_[A-Za-z0-9]{40}/g,
+      description: 'Linear API key detected',
+    },
+    {
+      name: 'Notion API Key',
+      pattern: /secret_[A-Za-z0-9]{43}/g,
+      description: 'Notion API key detected',
+    },
+    {
+      name: 'Airtable API Key',
+      pattern: /key[A-Za-z0-9]{14}/g,
+      description: 'Airtable API key detected',
+    },
+    {
+      name: 'Doppler Token',
+      pattern: /dp\.pt\.[A-Za-z0-9]{43}/g,
+      description: 'Doppler token detected',
+    },
   ];
 
   // Patterns to exclude (false positives)
+  // NOTE: Intentionally minimal - AI agents often use words like "test", "mock", "example"
+  // to disguise real hardcoded secrets. We only exclude obvious template patterns.
   private readonly excludePatterns: RegExp[] = [
-    /process\.env\./,
-    /import\.meta\.env\./,
-    /config\.\w+/,
-    /\$\{.*\}/,  // Template literals with variables
-    /<%.*%>/,    // EJS templates
-    /\{\{.*\}\}/, // Handlebars/Mustache templates
-    /placeholder/i,
-    /example/i,
-    /dummy/i,
-    /test/i,
-    /mock/i,
-    /fake/i,
-    /xxx+/i,
-    /your[_-]?(?:api[_-]?key|password|secret)/i,
-    /\*{3,}/,    // Masked values like ****
-    /\.\.\.$/,   // Truncated values
+    /process\.env\.[A-Z_]+\s*$/,  // Only pure env var references (no fallback)
+    /import\.meta\.env\.[A-Z_]+\s*$/,  // Only pure env var references
+    /\$\{[A-Z_]+\}/,  // Template literals with env-style variables only
+    /<%[=]?\s*\w+\s*%>/,    // EJS templates
+    /\{\{\s*\w+\s*\}\}/, // Handlebars/Mustache templates
+    /your[_-]?(?:api[_-]?key|password|secret|token)(?:[_-]?here)?/i,  // Obvious placeholders
+    /\*{8,}/,    // Heavily masked values like ********
+    /^x{8,}$/i,  // Only pure xxx... strings
+    /<[A-Z_]+>/,  // Placeholder patterns like <API_KEY>
+    /\[(?:YOUR|INSERT|REPLACE)[_\s].*\]/i,  // [YOUR_API_KEY] style placeholders
   ];
 
   configure(options: Partial<HardcodedSecretsConfig>): void {
@@ -246,6 +305,44 @@ export class HardcodedSecretsRule implements IRule {
       this.checkForSecrets(filePath, content, violations);
     }
 
+    return { violations };
+  }
+
+  /**
+   * Check a single file for secrets (incremental/real-time validation)
+   */
+  async checkFile(filePath: string, context: RuleContext): Promise<RuleResult> {
+    const violations: Violation[] = [];
+    
+    // Skip ignored paths
+    if (this.shouldIgnorePath(filePath)) {
+      return { violations };
+    }
+
+    // Convert to relative path for fileContents lookup
+    const path = await import('path');
+    const relativePath = path.relative(context.config.root, filePath).replace(/\\/g, '/');
+    
+    // Get file content from context or read directly
+    let content = context.fileContents?.get(relativePath);
+    
+    if (!content) {
+      // Try with backslashes (Windows)
+      content = context.fileContents?.get(relativePath.replace(/\//g, '\\'));
+    }
+    
+    if (!content) {
+      // Read file directly as fallback
+      try {
+        const fs = await import('fs/promises');
+        content = await fs.readFile(filePath, 'utf-8');
+      } catch {
+        // File might not exist or be readable
+        return { violations };
+      }
+    }
+
+    this.checkForSecrets(relativePath, content, violations);
     return { violations };
   }
 
