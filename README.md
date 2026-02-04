@@ -444,4 +444,4 @@ Contributions are welcome. Please read the contributing guidelines before submit
 
 - [npm Package](https://www.npmjs.com/package/camouf)
 - [GitHub Repository](https://github.com/TheEmilz/camouf)
-- [Issue Tracker](https://github.com/TheEmilz/camouf/issues)
+- [Epixiom Web & Marketing](https://epixiom.io)
