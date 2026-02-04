@@ -69,7 +69,7 @@ export class PerformanceAntipatternsRule implements IRule {
       const line = lines[i];
 
       // Detect loop start
-      if (/\b(for|while|forEach|map|reduce|filter)\s*[\(\[]/.test(line)) {
+      if (/\b(for|while|forEach|map|reduce|filter)\s*[([]/.test(line)) {
         inLoop = true;
         loopStartLine = i + 1;
       }
@@ -103,7 +103,7 @@ export class PerformanceAntipatternsRule implements IRule {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      if (/\b(for|while|do)\s*[\(\{]/.test(line)) {
+      if (/\b(for|while|do)\s*[({]/.test(line)) {
         currentDepth++;
         if (currentDepth > maxDepth) {
           violations.push(this.createViolation(

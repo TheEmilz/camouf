@@ -129,7 +129,7 @@ export class TypeSafetyRule implements IRule {
       const line = lines[i];
 
       // Check for non-null assertions
-      if (/\w+!\s*[.\[]/.test(line) && !line.includes('!==') && !line.includes('!=')) {
+      if (/\w+!\s*[.[\]]/.test(line) && !line.includes('!==') && !line.includes('!=')) {
         violations.push(this.createViolation(
           filePath,
           'Non-null assertion operator (!) used',
