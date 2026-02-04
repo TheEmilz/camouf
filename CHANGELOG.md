@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-02-04
+
+### Improved
+- Smart directory detection during `camouf init`
+  - Analyzes actual file content to detect frontend vs backend code
+  - Detects React, Vue, Angular, Svelte patterns for client directories
+  - Detects Express, NestJS, Fastify, database patterns for server directories
+  - Detects shared types, utilities, and common code patterns
+  - Falls back to intelligent heuristics when content analysis is inconclusive
+
 ## [0.2.2] - 2026-02-04
 
 ### Fixed
