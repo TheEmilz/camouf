@@ -8,6 +8,7 @@
 import { cosmiconfig } from 'cosmiconfig';
 import _Ajv, { ValidateFunction } from 'ajv';
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
 import { CamoufConfig, defaultConfig, SupportedLanguage, LayerConfig } from '../../types/config.types.js';
 import { Logger } from '../logger.js';
@@ -118,12 +119,9 @@ export class ConfigurationManager {
     ];
 
     for (const file of configFiles) {
-      try {
-        const filePath = path.join(process.cwd(), file);
-        fs.access(filePath);
+      const filePath = path.join(process.cwd(), file);
+      if (fsSync.existsSync(filePath)) {
         return true;
-      } catch {
-        // File doesn't exist, continue
       }
     }
 

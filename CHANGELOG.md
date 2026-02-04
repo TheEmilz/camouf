@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-02-04
+
+### Fixed
+- Fixed `camouf init` command failing with "Configuration already exists" error even when no config file exists
+  - The `configExists()` method was using async `fs.access` without await, causing false positives
+
 ## [0.2.1] - 2026-02-04
 
 ### Added
