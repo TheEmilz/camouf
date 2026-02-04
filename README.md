@@ -344,4 +344,5 @@ Contributions are welcome. Please read the contributing guidelines before submit
 ## Links
 
 - [npm Package](https://www.npmjs.com/package/camouf)
-- [Issue Tracker](https://github.com/camouf-cli/camouf/issues)
+- [GitHub Repository](https://github.com/TheEmilz/camouf)
+- [Issue Tracker](https://github.com/TheEmilz/camouf/issues)
