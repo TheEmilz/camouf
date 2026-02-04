@@ -1,0 +1,60 @@
+# Camouf - Ignore patterns for analysis
+
+# Build outputs
+dist/
+build/
+out/
+
+# Dependencies
+node_modules/
+vendor/
+venv/
+__pycache__/
+
+# Test files
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/__tests__/
+**/__mocks__/
+coverage/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Version control
+.git/
+.svn/
+.hg/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.cache
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Documentation
+docs/
+*.md
+
+# Configuration files that shouldn't be analyzed
+*.config.js
+*.config.ts
+jest.config.*
+webpack.config.*
+rollup.config.*
+vite.config.*
