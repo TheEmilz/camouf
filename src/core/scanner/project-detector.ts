@@ -190,49 +190,194 @@ export class ProjectDetector {
   }
 
   /**
-   * Detect directory structure
+   * Detect directory structure by analyzing content
    */
   private async detectDirectories(rootDir: string): Promise<ProjectDetection['directories']> {
-    const directories = await fg('**/', {
-      cwd: rootDir,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
-      onlyDirectories: true,
-      deep: 3,
-      suppressErrors: true,
-    });
-
     const result: ProjectDetection['directories'] = {
       client: [],
       server: [],
       shared: [],
     };
 
+    // Get all directories
+    const directories = await fg('**/', {
+      cwd: rootDir,
+      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**', '**/vendor/**', '**/__pycache__/**'],
+      onlyDirectories: true,
+      deep: 4,
+      suppressErrors: true,
+    });
+
+    // Get all source files for content analysis
+    const sourceFiles = await fg('**/*.{ts,tsx,js,jsx,py,java,go,rs}', {
+      cwd: rootDir,
+      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**', '**/vendor/**'],
+      onlyFiles: true,
+      deep: 5,
+      suppressErrors: true,
+    });
+
+    // Analyze directories based on content
+    const dirScores = new Map<string, { client: number; server: number; shared: number }>();
+
+    // Initialize scores for top-level directories
     for (const dir of directories) {
       const normalizedDir = dir.replace(/\/$/, '');
-      const dirName = path.basename(normalizedDir).toLowerCase();
-
-      // Check client patterns
-      if (this.matchesPatterns(normalizedDir, this.directoryPatterns.client)) {
-        result.client.push(normalizedDir);
-      }
-
-      // Check server patterns
-      if (this.matchesPatterns(normalizedDir, this.directoryPatterns.server)) {
-        result.server.push(normalizedDir);
-      }
-
-      // Check shared patterns
-      if (this.matchesPatterns(normalizedDir, this.directoryPatterns.shared)) {
-        result.shared.push(normalizedDir);
+      const topLevel = normalizedDir.split('/')[0];
+      if (!dirScores.has(topLevel)) {
+        dirScores.set(topLevel, { client: 0, server: 0, shared: 0 });
       }
     }
 
-    // If no directories found, use reasonable defaults
+    // Add 'src' if it exists
+    if (directories.some(d => d === 'src/' || d === 'src')) {
+      dirScores.set('src', { client: 0, server: 0, shared: 0 });
+    }
+
+    // Score based on directory names
+    for (const dir of directories) {
+      const normalizedDir = dir.replace(/\/$/, '');
+      const topLevel = normalizedDir.split('/')[0];
+      const scores = dirScores.get(topLevel);
+      if (!scores) continue;
+
+      // Client indicators in path
+      if (this.matchesPatterns(normalizedDir, this.directoryPatterns.client)) {
+        scores.client += 5;
+      }
+      // Server indicators in path
+      if (this.matchesPatterns(normalizedDir, this.directoryPatterns.server)) {
+        scores.server += 5;
+      }
+      // Shared indicators in path
+      if (this.matchesPatterns(normalizedDir, this.directoryPatterns.shared)) {
+        scores.shared += 5;
+      }
+    }
+
+    // Score based on file content patterns
+    for (const file of sourceFiles.slice(0, 500)) {
+      const topLevel = file.split('/')[0];
+      const scores = dirScores.get(topLevel);
+      if (!scores) continue;
+
+      try {
+        const filePath = path.join(rootDir, file);
+        const content = await fs.readFile(filePath, 'utf-8');
+        const lowerContent = content.toLowerCase();
+
+        // Client indicators (frontend code patterns)
+        const clientPatterns = [
+          /import.*from ['"]react['"]/i,
+          /import.*from ['"]vue['"]/i,
+          /import.*from ['"]@angular/i,
+          /import.*from ['"]svelte['"]/i,
+          /usestate|useeffect|usememo/i,
+          /\bdom\b|document\.|window\./i,
+          /classname=|classname:/i,
+          /onclick|onchange|onsubmit/i,
+          /<div|<span|<button|<input/i,
+          /\.module\.css|\.module\.scss/i,
+          /tailwind|styled-components/i,
+          /router.*navigate|usenavigation|userouter/i,
+        ];
+
+        // Server indicators (backend code patterns)
+        const serverPatterns = [
+          /express\(\)|fastify\(\)|koa\(\)/i,
+          /app\.(get|post|put|delete|patch)\s*\(/i,
+          /router\.(get|post|put|delete|patch)\s*\(/i,
+          /@controller|@get|@post|@injectable/i,
+          /prisma|sequelize|typeorm|mongoose/i,
+          /\.createserver|\.listen\s*\(/i,
+          /req\s*,\s*res|request\s*,\s*response/i,
+          /middleware|authentication|authorization/i,
+          /database|repository|service.*\{/i,
+          /sql|query\(|execute\(/i,
+          /jwt|bcrypt|passport/i,
+          /sendmail|smtp|nodemailer/i,
+          /fastapi|flask|django/i,
+          /gin\.|echo\.|fiber\./i,
+        ];
+
+        // Shared indicators (utilities, types, etc.)
+        const sharedPatterns = [
+          /export\s+(interface|type)\s+\w+/i,
+          /export\s+const\s+\w+\s*=/i,
+          /\.d\.ts$/i,
+          /validation|validator|schema/i,
+          /constant|config|enum/i,
+          /util|helper|common/i,
+        ];
+
+        for (const pattern of clientPatterns) {
+          if (pattern.test(content)) {
+            scores.client += 1;
+          }
+        }
+
+        for (const pattern of serverPatterns) {
+          if (pattern.test(content)) {
+            scores.server += 1;
+          }
+        }
+
+        for (const pattern of sharedPatterns) {
+          if (pattern.test(content)) {
+            scores.shared += 0.5;
+          }
+        }
+
+      } catch {
+        // Can't read file, skip
+      }
+    }
+
+    // Determine directory types based on scores
+    for (const [dir, scores] of dirScores) {
+      const total = scores.client + scores.server + scores.shared;
+      if (total === 0) continue;
+
+      // Calculate percentages
+      const clientPct = scores.client / total;
+      const serverPct = scores.server / total;
+      const sharedPct = scores.shared / total;
+
+      // Assign based on dominant type (threshold 40%)
+      if (clientPct > 0.4 && scores.client > 2) {
+        result.client.push(dir);
+      } else if (serverPct > 0.4 && scores.server > 2) {
+        result.server.push(dir);
+      } else if (sharedPct > 0.4 && scores.shared > 2) {
+        result.shared.push(dir);
+      } else if (scores.client > scores.server && scores.client > 2) {
+        result.client.push(dir);
+      } else if (scores.server > scores.client && scores.server > 2) {
+        result.server.push(dir);
+      }
+    }
+
+    // If still nothing detected, use heuristics
     if (result.client.length === 0 && result.server.length === 0) {
-      // Check if src exists
-      const srcExists = directories.some(d => d === 'src/' || d === 'src');
-      if (srcExists) {
-        result.client.push('src');
+      // Single 'src' directory - check what's inside
+      if (directories.some(d => d.startsWith('src/'))) {
+        const srcSubdirs = directories.filter(d => d.startsWith('src/') && d.split('/').length === 2);
+        for (const subdir of srcSubdirs) {
+          const name = subdir.replace('src/', '').replace('/', '');
+          if (['app', 'pages', 'components', 'views'].includes(name.toLowerCase())) {
+            result.client.push('src');
+            break;
+          }
+          if (['api', 'server', 'controllers', 'routes'].includes(name.toLowerCase())) {
+            result.server.push('src');
+            break;
+          }
+        }
+        // Default: if src has no clear type, assume fullstack
+        if (result.client.length === 0 && result.server.length === 0) {
+          result.client.push('src');
+          result.server.push('src');
+        }
       }
     }
 
