@@ -55,7 +55,7 @@
     "figures": "^6.0.1",
     "graphlib": "^2.1.8",
     "inquirer": "^9.2.12",
-    "log-symbols": "^6.0.0",
+    "log-symbols": "^7.0.1",
     "ora": "^8.0.1",
     "tree-sitter": "^0.21.0",
     "tree-sitter-go": "^0.21.0",
