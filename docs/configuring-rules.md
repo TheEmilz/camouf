@@ -1,6 +1,6 @@
 # Configuring Rules
 
-Camouf comes with 11 built-in rules. This guide explains how to configure each one.
+Camouf comes with 12 built-in rules. This guide explains how to configure each one.
 
 ## Rule Levels
 
@@ -108,6 +108,64 @@ Circular dependency detected:
 ```
 MongoDB connection string with credentials detected: mong****@cluster
 Move sensitive values to environment variables or a secrets manager
+```
+
+---
+
+### contract-mismatch
+
+**Purpose**: Validates that client-side API calls match the defined server contracts (OpenAPI/GraphQL).
+
+```json
+"contract-mismatch": {
+  "level": "error",
+  "options": {
+    "autoDetect": true,
+    "openApiSpecs": ["api/openapi.json"],
+    "graphqlSchemas": ["api/schema.graphql"],
+    "checkDeprecated": true,
+    "checkRequiredParams": true,
+    "checkUnknownEndpoints": true,
+    "ignorePaths": ["/health", "/metrics"]
+  }
+}
+```
+
+**Configuration Options**:
+- `autoDetect`: Automatically find schema files (default: `true`)
+- `openApiSpecs`: Explicit paths to OpenAPI/Swagger specs
+- `graphqlSchemas`: Explicit paths to GraphQL schema files
+- `checkDeprecated`: Warn on deprecated endpoint usage (default: `true`)
+- `checkRequiredParams`: Validate required parameters (default: `true`)
+- `checkUnknownEndpoints`: Error on undefined endpoints (default: `true`)
+- `ignorePaths`: Skip validation for these paths
+
+**Detected API Call Patterns**:
+- `fetch('/api/users')` - Fetch API
+- `axios.get('/api/users')` - Axios
+- `this.http.get('/api/users')` - Angular HttpClient
+- GraphQL queries with `gql` template literals
+- React Query hooks (`useQuery`, `useMutation`)
+
+**Example Violations**:
+```
+API call to undefined endpoint: GET /api/v1/admin/settings
+Verify the endpoint exists in your OpenAPI specification
+```
+
+```
+Call to deprecated endpoint: POST /api/v1/users/legacy
+This endpoint is marked as deprecated. Consider using the replacement API
+```
+
+```
+Missing required query parameter 'limit' for GET /api/v1/items
+Add the required parameter: ?limit=value
+```
+
+```
+GraphQL query references undefined field: deleteUser
+Verify the field 'deleteUser' exists in your GraphQL schema
 ```
 
 ---

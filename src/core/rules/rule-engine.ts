@@ -13,6 +13,7 @@ import { IRule, RuleContext, RuleResult } from './rule.interface.js';
 // Import built-in rules
 import { LayerDependenciesRule } from './builtin/layer-dependencies.rule.js';
 import { CircularDependenciesRule } from './builtin/circular-dependencies.rule.js';
+import { ContractMismatchRule } from './builtin/contract-mismatch.rule.js';
 import { PerformanceAntipatternsRule } from './builtin/performance-antipatterns.rule.js';
 import { TypeSafetyRule } from './builtin/type-safety.rule.js';
 import { DataFlowIntegrityRule } from './builtin/data-flow-integrity.rule.js';
@@ -41,6 +42,7 @@ export class RuleEngine {
     const builtinRules: IRule[] = [
       new LayerDependenciesRule(),
       new CircularDependenciesRule(),
+      new ContractMismatchRule(),
       new PerformanceAntipatternsRule(),
       new TypeSafetyRule(),
       new DataFlowIntegrityRule(),

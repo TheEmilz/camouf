@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-04
+
+### Added
+- New `contract-mismatch` rule for API contract validation
+  - Validates client API calls against OpenAPI/Swagger specifications
+  - Supports GraphQL schema validation
+  - Detects calls to undefined endpoints
+  - Warns on deprecated API usage
+  - Validates required parameters
+  - Auto-detects schema files (openapi.json, swagger.yaml, schema.graphql)
+  - Supports fetch(), axios, Angular HttpClient, and GraphQL queries
+
+### Changed
+- Total built-in rules increased from 11 to 12
+
 ## [0.2.0] - 2026-02-04
 
 ### Added
