@@ -6,6 +6,7 @@
 
 export { ApiVersioningEvolutionRule } from './api-versioning.rule.js';
 export { CircularDependenciesRule } from './circular-dependencies.rule.js';
+export { ContractMismatchRule } from './contract-mismatch.rule.js';
 export { DataFlowIntegrityRule } from './data-flow-integrity.rule.js';
 export { DddBoundariesRule } from './ddd-boundaries.rule.js';
 export { DistributedTransactionsRule } from './distributed-transactions.rule.js';

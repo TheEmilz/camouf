@@ -14,7 +14,7 @@ Camouf is a powerful, multi-language CLI tool for monitoring and enforcing softw
 - **Real-time Monitoring**: Watch mode for continuous architecture validation
 - **Multi-language Support**: TypeScript, JavaScript, Python, Java, Go, Rust
 - **Advanced Analysis**: Circular dependency detection, coupling metrics, hotspot identification
-- **11 Built-in Rules**: Comprehensive rule set for modern architectures
+- **12 Built-in Rules**: Comprehensive rule set for modern architectures
 - **Security Scanning**: Detects hardcoded secrets, API keys, and credentials
 - **Multiple Report Formats**: HTML, JSON, Markdown, SARIF
 - **IDE Integration**: SARIF export for VS Code and other editors
@@ -205,6 +205,7 @@ Camouf supports multiple configuration formats:
 |------|-------------|---------|
 | `layer-dependencies` | Validates layer boundary compliance | `error` |
 | `circular-dependencies` | Detects circular dependency cycles | `error` |
+| `contract-mismatch` | Validates API contracts (OpenAPI/GraphQL) | `error` |
 | `ddd-boundaries` | Validates DDD principles and bounded contexts | `warn` |
 
 ### Security Rules
