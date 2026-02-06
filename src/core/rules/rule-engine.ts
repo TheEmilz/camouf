@@ -22,6 +22,7 @@ import { ApiVersioningEvolutionRule } from './builtin/api-versioning.rule.js';
 import { SecurityContextRule } from './builtin/security-context.rule.js';
 import { ResiliencePatternsRule } from './builtin/resilience-patterns.rule.js';
 import { DddBoundariesRule } from './builtin/ddd-boundaries.rule.js';
+import { FunctionSignatureMatchingRule } from './builtin/function-signature-matching.rule.js';
 import { HardcodedSecretsRule } from './builtin/hardcoded-secrets.rule.js';
 
 export class RuleEngine {
@@ -51,6 +52,7 @@ export class RuleEngine {
       new SecurityContextRule(),
       new ResiliencePatternsRule(),
       new DddBoundariesRule(),
+      new FunctionSignatureMatchingRule(),
       new HardcodedSecretsRule(),
     ];
 

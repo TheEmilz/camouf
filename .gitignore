@@ -34,3 +34,6 @@ node_modules
 
 #docs
 INTERNAL_DOCS.md
+
+# Test folder for signature matching
+test-signature-matching/

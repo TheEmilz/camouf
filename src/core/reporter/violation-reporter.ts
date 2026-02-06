@@ -89,6 +89,10 @@ export class ViolationReporter {
    * Generate a report in the specified format
    */
   generateReport(violations: Violation[], options: ReporterOptions): string {
+    // Always update summary when generating a report
+    this.violations = violations;
+    this.updateSummary(violations);
+    
     switch (options.format) {
       case 'json':
         return this.generateJsonReport(violations);

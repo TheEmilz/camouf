@@ -10,6 +10,7 @@ export { ContractMismatchRule } from './contract-mismatch.rule.js';
 export { DataFlowIntegrityRule } from './data-flow-integrity.rule.js';
 export { DddBoundariesRule } from './ddd-boundaries.rule.js';
 export { DistributedTransactionsRule } from './distributed-transactions.rule.js';
+export { FunctionSignatureMatchingRule } from './function-signature-matching.rule.js';
 export { HardcodedSecretsRule } from './hardcoded-secrets.rule.js';
 export { LayerDependenciesRule } from './layer-dependencies.rule.js';
 export { PerformanceAntipatternsRule } from './performance-antipatterns.rule.js';

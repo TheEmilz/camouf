@@ -1,0 +1,45 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#58a6ff', 'primaryTextColor': '#fff', 'primaryBorderColor': '#30363d', 'lineColor': '#8b949e', 'secondaryColor': '#21262d', 'tertiaryColor': '#161b22', 'background': '#0d1117', 'mainBkg': '#161b22', 'nodeBorder': '#30363d', 'clusterBkg': '#21262d', 'clusterBorder': '#30363d', 'titleColor': '#c9d1d9', 'edgeLabelBackground': '#21262d'}}}%%
+
+flowchart LR
+    subgraph Commands["CLI Commands"]
+        direction TB
+        C1["camouf init"]
+        C2["camouf analyze"]
+        C3["camouf watch"]
+        C4["camouf validate"]
+        C5["camouf report"]
+        C6["camouf fix"]
+    end
+    
+    subgraph Rules["Built-in Rules"]
+        direction TB
+        R1["circular-dependencies"]
+        R2["layer-dependencies"]
+        R3["function-signature-matching"]
+        R4["hardcoded-secrets"]
+        R5["ddd-boundaries"]
+        R6["+7 more..."]
+    end
+    
+    subgraph Output["Output"]
+        direction TB
+        O1["Terminal"]
+        O2["VS Code Problems"]
+        O3["HTML Report"]
+        O4["JSON/SARIF"]
+    end
+    
+    Commands --> Rules --> Output
+    
+    style C1 fill:#58a6ff,stroke:#58a6ff
+    style C2 fill:#58a6ff,stroke:#58a6ff
+    style C3 fill:#3fb950,stroke:#3fb950
+    style C4 fill:#58a6ff,stroke:#58a6ff
+    style C5 fill:#a371f7,stroke:#a371f7
+    style C6 fill:#f0883e,stroke:#f0883e
+    style R3 fill:#f85149,stroke:#f85149
+    style R4 fill:#f85149,stroke:#f85149
+    style O1 fill:#21262d,stroke:#30363d
+    style O2 fill:#21262d,stroke:#30363d
+    style O3 fill:#21262d,stroke:#30363d
+    style O4 fill:#21262d,stroke:#30363d

@@ -45,7 +45,8 @@ export const reportCommand = new Command('report')
 
       // Validate
       spinner.start('Running validation...');
-      const violations = await ruleEngine.validate(graph);
+      const fileContents = scanner.getFileContents();
+      const violations = await ruleEngine.validate(graph, fileContents);
       spinner.succeed(`Found ${violations.length} violations`);
 
       // Generate report
