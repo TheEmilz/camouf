@@ -42,7 +42,10 @@ export const initCommand = new Command('init')
 
       let config;
 
-      if (options.yes) {
+      // --agent implies --yes (non-interactive) since agents can't answer prompts
+      const skipPrompts = options.yes || !!options.agent;
+
+      if (skipPrompts) {
         // Use detected defaults
         config = configManager.generateDefaultConfig(detection);
       } else {
