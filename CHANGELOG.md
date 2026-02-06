@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-04
+
+### Added
+- **AI Agent Integration** — Native support for CLI coding agents
+  - `camouf init --agent claude` — Generates `CLAUDE.md`, `.claude/commands/camouf-validate.md`, `.claude/commands/camouf-fix.md`, and `.claude/rules/camouf.md`
+  - `camouf init --agent codex` — Generates `AGENTS.md` for OpenAI Codex CLI
+  - `camouf init --agent all` — Generates integration files for all supported agents
+  - Claude Code slash commands: `/camouf-validate` and `/camouf-fix`
+  - Architecture rules automatically loaded into Claude sessions via `.claude/rules/camouf.md`
+- **`--ci` flag** for `validate` and `watch` commands
+  - Suppresses spinners, colors, and interactive prompts
+  - Automatically enabled when using `--format json`, `--format sarif`, or `--format vscode`
+  - Also triggered by `CI=1` or `CAMOUF_CI=1` environment variables
+  - Designed for non-interactive environments (CI pipelines, AI agents, scripts)
+- New `src/core/agents/agent-integrations.ts` module for agent template generation
+
+### Changed
+- Version bumped to 0.3.0 (minor version bump for new feature)
+- Updated `package.json` keywords with `claude-code`, `codex`, `ai-agent`, `CLAUDE.md`, `AGENTS.md`
+- Updated `src/cli/version.ts` with correct metadata (homepage, author, license)
+- Updated SARIF reporter with correct version and URL
+
+## [0.2.6] - 2026-02-04
+
+### Changed
+- README updated with Epixiom link
+
 ## [0.2.4] - 2026-02-04
 
 ### Added
