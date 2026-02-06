@@ -22,7 +22,9 @@ Camouf is a powerful, multi-language CLI tool for monitoring and enforcing softw
 - **Highly Configurable**: JSON, YAML, or JavaScript configuration
 
 <p align="center">
-  <img src="docs/images/architecture-overview.svg" alt="Camouf Architecture Overview" width="800" />
+  <a href="docs/images/architecture-overview.svg">
+    <img src="docs/images/architecture-overview.svg" alt="Camouf Architecture Overview" width="800" />
+  </a>
 </p>
 
 ---
@@ -38,7 +40,9 @@ These errors compile successfully but cause runtime failures.
 ### The Problem
 
 <p align="center">
-  <img src="docs/images/problem-flow.svg" alt="AI Context Loss Problem" width="800" />
+  <a href="docs/images/problem-flow.svg">
+    <img src="docs/images/problem-flow.svg" alt="AI Context Loss Problem" width="800" />
+  </a>
 </p>
 
 ### How Camouf Solves It
@@ -47,7 +51,9 @@ Camouf's `function-signature-matching` rule scans your shared contracts and uses
 fuzzy matching to detect when code uses names that are *close but not exact*:
 
 <p align="center">
-  <img src="docs/images/camouf-workflow.svg" alt="Camouf Workflow" width="800" />
+  <a href="docs/images/camouf-workflow.svg">
+    <img src="docs/images/camouf-workflow.svg" alt="Camouf Workflow" width="800" />
+  </a>
 </p>
 
 ### Example Detection
