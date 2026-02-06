@@ -1,0 +1,48 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#58a6ff', 'primaryTextColor': '#fff', 'primaryBorderColor': '#30363d', 'lineColor': '#8b949e', 'secondaryColor': '#21262d', 'tertiaryColor': '#161b22', 'background': '#0d1117', 'mainBkg': '#161b22', 'nodeBorder': '#30363d', 'clusterBkg': '#21262d', 'clusterBorder': '#30363d', 'titleColor': '#c9d1d9', 'edgeLabelBackground': '#21262d'}}}%%
+
+flowchart TB
+    subgraph Phase1["Phase 1: Extract Contracts"]
+        direction LR
+        S1["Scan<br/>shared/"]
+        S2["Parse<br/>Exports"]
+        S3["Build<br/>Index"]
+        S1 --> S2 --> S3
+    end
+    
+    subgraph Phase2["Phase 2: Analyze Code"]
+        direction LR
+        A1["Scan<br/>frontend/"]
+        A2["Find<br/>Calls"]
+        A3["Map<br/>Usage"]
+        A1 --> A2 --> A3
+    end
+    
+    subgraph Phase3["Phase 3: Match & Report"]
+        direction LR
+        M1["Semantic<br/>Matching"]
+        M2["Levenshtein<br/>Distance"]
+        M3["Synonym<br/>Detection"]
+        M1 --> M2 --> M3
+    end
+    
+    subgraph Output["Output"]
+        direction TB
+        O1["Violations"]
+        O2["HTML Report"]
+        O3["Auto-Fix"]
+    end
+    
+    Phase1 --> Phase2 --> Phase3 --> Output
+    
+    style S1 fill:#58a6ff,stroke:#58a6ff
+    style S2 fill:#58a6ff,stroke:#58a6ff
+    style S3 fill:#58a6ff,stroke:#58a6ff
+    style A1 fill:#a371f7,stroke:#a371f7
+    style A2 fill:#a371f7,stroke:#a371f7
+    style A3 fill:#a371f7,stroke:#a371f7
+    style M1 fill:#f0883e,stroke:#f0883e
+    style M2 fill:#f0883e,stroke:#f0883e
+    style M3 fill:#f0883e,stroke:#f0883e
+    style O1 fill:#f85149,stroke:#f85149
+    style O2 fill:#3fb950,stroke:#3fb950
+    style O3 fill:#3fb950,stroke:#3fb950

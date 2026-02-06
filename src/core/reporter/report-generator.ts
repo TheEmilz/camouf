@@ -10,6 +10,7 @@ import { CamoufConfig } from '../../types/config.types.js';
 import { Violation } from '../../types/core.types.js';
 import { DependencyGraph } from '../scanner/project-scanner.js';
 import { Logger } from '../logger.js';
+import { generateSignatureReportHTML } from './signature-report.template.js';
 
 interface ReportOptions {
   graph: DependencyGraph;
@@ -327,6 +328,58 @@ export class ReportGenerator {
 
     await fs.writeFile(path.join(options.outputPath, 'index.html'), html);
     Logger.debug(`HTML report written to ${options.outputPath}/index.html`);
+
+    // Generate signature-specific report if there are signature violations
+    const signatureViolations = violations.filter(v => v.ruleId === 'function-signature-matching');
+    if (signatureViolations.length > 0) {
+      await this.generateSignatureReport(signatureViolations, options.outputPath);
+    }
+  }
+
+  private async generateSignatureReport(violations: Violation[], outputPath: string): Promise<void> {
+    // Convert violations to signature mismatch data
+    type MismatchType = 'function-name' | 'parameter-name' | 'parameter-count' | 'type-field' | 'missing-field';
+    
+    const mismatches = violations.map((v, index) => {
+      const meta = v.metadata as {
+        mismatchId?: string;
+        mismatchType?: MismatchType;
+        expected?: string;
+        found?: string;
+        similarity?: number;
+        definedIn?: { file: string; line: number };
+      } | undefined;
+      
+      return {
+        id: meta?.mismatchId || `sig-${String(index + 1).padStart(3, '0')}`,
+        type: (meta?.mismatchType || 'function-name') as MismatchType,
+        expected: meta?.expected || '',
+        found: meta?.found || '',
+        similarity: meta?.similarity,
+        definedIn: meta?.definedIn || { file: 'unknown', line: 0 },
+        usedIn: { file: v.file, line: v.line || 0, column: v.column },
+        quickFixCommand: `npx camouf fix --id ${meta?.mismatchId || `sig-${String(index + 1).padStart(3, '0')}`}`,
+      };
+    });
+
+    const summary = {
+      total: violations.length,
+      functionNames: violations.filter(v => (v.metadata as { mismatchType?: string })?.mismatchType === 'function-name').length,
+      parameterNames: violations.filter(v => (v.metadata as { mismatchType?: string })?.mismatchType === 'parameter-name').length,
+      parameterCounts: violations.filter(v => (v.metadata as { mismatchType?: string })?.mismatchType === 'parameter-count').length,
+      typeFields: violations.filter(v => (v.metadata as { mismatchType?: string })?.mismatchType === 'type-field').length,
+    };
+
+    const reportData = {
+      projectName: this.config.name || 'Project',
+      timestamp: new Date().toISOString(),
+      summary,
+      mismatches,
+    };
+
+    const signatureHtml = generateSignatureReportHTML(reportData);
+    await fs.writeFile(path.join(outputPath, 'signature-mismatches.html'), signatureHtml);
+    Logger.debug(`Signature mismatch report written to ${outputPath}/signature-mismatches.html`);
   }
 
   private async generateJsonReport(options: ReportOptions): Promise<void> {

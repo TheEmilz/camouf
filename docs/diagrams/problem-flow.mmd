@@ -1,0 +1,42 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#58a6ff', 'primaryTextColor': '#fff', 'primaryBorderColor': '#30363d', 'lineColor': '#8b949e', 'secondaryColor': '#21262d', 'tertiaryColor': '#161b22', 'background': '#0d1117', 'mainBkg': '#161b22', 'nodeBorder': '#30363d', 'clusterBkg': '#21262d', 'clusterBorder': '#30363d', 'titleColor': '#c9d1d9', 'edgeLabelBackground': '#21262d'}}}%%
+
+flowchart LR
+    subgraph AI["AI Agent Context"]
+        direction TB
+        A1["Limited<br/>Context Window"]
+        A2["No Backend<br/>Visibility"]
+    end
+    
+    subgraph Backend["Backend Contract"]
+        direction TB
+        B1["getUserById(id)"]
+        B2["CreateUserDTO.email"]
+        B3["Order.totalAmount"]
+    end
+    
+    subgraph Frontend["AI Generated Code"]
+        direction TB
+        F1["getUser(userId)"]
+        F2["payload.userEmail"]
+        F3["order.totalPrice"]
+    end
+    
+    subgraph Result["Result"]
+        R1["Compiles OK"]
+        R2["Runtime Error"]
+    end
+    
+    AI --> Frontend
+    Backend -.->|"Name<br/>Mismatch"| Frontend
+    Frontend --> Result
+    
+    style A1 fill:#f85149,stroke:#f85149
+    style A2 fill:#f85149,stroke:#f85149
+    style B1 fill:#3fb950,stroke:#3fb950
+    style B2 fill:#3fb950,stroke:#3fb950
+    style B3 fill:#3fb950,stroke:#3fb950
+    style F1 fill:#f0883e,stroke:#f0883e
+    style F2 fill:#f0883e,stroke:#f0883e
+    style F3 fill:#f0883e,stroke:#f0883e
+    style R1 fill:#3fb950,stroke:#3fb950
+    style R2 fill:#f85149,stroke:#f85149

@@ -14,15 +14,89 @@ Camouf is a powerful, multi-language CLI tool for monitoring and enforcing softw
 - **Real-time Monitoring**: Watch mode for continuous architecture validation
 - **Multi-language Support**: TypeScript, JavaScript, Python, Java, Go, Rust
 - **Advanced Analysis**: Circular dependency detection, coupling metrics, hotspot identification
-- **12 Built-in Rules**: Comprehensive rule set for modern architectures
+- **13 Built-in Rules**: Comprehensive rule set for modern architectures
+- **AI Agent Safety**: Detects function/field name mismatches from AI context loss
 - **Security Scanning**: Detects hardcoded secrets, API keys, and credentials
 - **Multiple Report Formats**: HTML, JSON, Markdown, SARIF
 - **VS Code Integration**: Real-time Problems panel integration with custom tasks
 - **Highly Configurable**: JSON, YAML, or JavaScript configuration
 
+<p align="center">
+  <img src="docs/images/architecture-overview.svg" alt="Camouf Architecture Overview" width="800" />
+</p>
+
+---
+
+## Function Signature Matching: Catch AI Agent Errors
+
+AI coding agents like Claude Code and GitHub Copilot work with limited context windows.
+When generating frontend code without full visibility into backend contracts, they often
+use **similar but incorrect names** for functions and type fields.
+
+These errors compile successfully but cause runtime failures.
+
+### The Problem
+
+<p align="center">
+  <img src="docs/images/problem-flow.svg" alt="AI Context Loss Problem" width="800" />
+</p>
+
+### How Camouf Solves It
+
+Camouf's `function-signature-matching` rule scans your shared contracts and uses
+fuzzy matching to detect when code uses names that are *close but not exact*:
+
+<p align="center">
+  <img src="docs/images/camouf-workflow.svg" alt="Camouf Workflow" width="800" />
+</p>
+
+### Example Detection
+
+```
+Defined in shared/api.ts:15      Used in frontend/user.ts:42
+         getUserById(id)    ◄──────────    getUser(userId)
+                                  └── 75% similar, likely a typo
+```
+
+### Quick Fix Commands
+
+```bash
+# Interactive mode: confirm each fix
+npx camouf fix-signatures --interactive
+
+# Fix all mismatches automatically
+npx camouf fix-signatures --all
+
+# Fix a specific mismatch by ID
+npx camouf fix --id sig-001
+
+# Preview what would be fixed
+npx camouf fix-signatures --all --dry-run
+```
+
+### Interactive HTML Report
+
+Run validation to generate a report with clickable quick-fix commands:
+
+```bash
+npx camouf report --format html --output camouf-report/
+```
+
+The report shows:
+
+| Status | Type | Expected | Found | Quick Fix |
+|--------|------|----------|-------|-----------|
+| Error | Function | `getUserById` | `getUser` | `npx camouf fix --id sig-001` |
+| Error | Field | `email` | `userEmail` | `npx camouf fix --id sig-002` |
+
+See [AI Agent Challenges](docs/ai-agent-challenges.md) for a comprehensive guide on this feature.
+
+---
+
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
+- [AI Agent Challenges](docs/ai-agent-challenges.md) — How Camouf catches AI-generated code errors
 - [Configuring Rules](docs/configuring-rules.md)
 - [CI/CD Integration](docs/ci-cd-integration.md)
 - [Changelog](CHANGELOG.md)
@@ -152,6 +226,36 @@ Options:
   -f, --format <type>   Report format (html, json, markdown)
 ```
 
+### `camouf fix`
+
+Apply a single quick-fix by ID.
+
+```bash
+camouf fix [options]
+
+Options:
+  --id <id>            Quick-fix ID (e.g., sig-001)
+  -c, --config <path>  Path to configuration file
+  --dry-run            Preview changes without applying
+```
+
+### `camouf fix-signatures`
+
+Fix all function/field signature mismatches.
+
+```bash
+camouf fix-signatures [options]
+
+Options:
+  --all                 Fix all mismatches automatically
+  --interactive         Confirm each fix interactively
+  --file <path>         Fix only mismatches in specific file
+  --type <type>         Fix only function or field mismatches
+  -c, --config <path>   Path to configuration file
+  --dry-run             Preview changes without applying
+  --ci                  CI/agent mode: no prompts, use --all for auto-fix
+```
+
 ## Configuration
 
 ### Configuration File
@@ -195,6 +299,7 @@ Camouf supports multiple configuration formats:
     "builtin": {
       "layer-dependencies": "error",
       "circular-dependencies": "error",
+      "function-signature-matching": "error",
       "performance-antipatterns": "warn",
       "type-safety": "warn",
       "data-flow-integrity": "error",
@@ -223,6 +328,7 @@ Camouf supports multiple configuration formats:
 | `circular-dependencies` | Detects circular dependency cycles | `error` |
 | `contract-mismatch` | Validates API contracts (OpenAPI/GraphQL) | `error` |
 | `ddd-boundaries` | Validates DDD principles and bounded contexts | `warn` |
+| `function-signature-matching` | Detects mismatched function/field names between contracts and usage | `error` |
 
 ### Security Rules
 

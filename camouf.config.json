@@ -2,6 +2,7 @@
   "name": "camouf",
   "root": ".",
   "languages": [
+    "javascript",
     "typescript"
   ],
   "layers": [
@@ -80,6 +81,10 @@
   },
   "patterns": {
     "include": [
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.mjs",
+      "**/*.cjs",
       "**/*.ts",
       "**/*.tsx",
       "**/*.mts",
@@ -92,7 +97,9 @@
       "**/.git/**",
       "**/coverage/**",
       "**/*.test.*",
-      "**/*.spec.*"
+      "**/*.spec.*",
+      "**/agent-integrations.ts",
+      "**/init.ts"
     ]
   }
 }

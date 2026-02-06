@@ -124,6 +124,9 @@ export interface BuiltinRulesConfig {
   
   /** Hardcoded secrets detection */
   'hardcoded-secrets'?: RuleLevel;
+  
+  /** Function signature matching across boundaries */
+  'function-signature-matching'?: RuleLevel;
 }
 
 export type RuleLevel = 'off' | 'warn' | 'error' | RuleLevelConfig;
@@ -242,8 +245,6 @@ export const defaultConfig: Partial<CamoufConfig> = {
       '**/build/**',
       '**/.git/**',
       '**/coverage/**',
-      '**/*.test.*',
-      '**/*.spec.*',
     ],
   },
   rules: {

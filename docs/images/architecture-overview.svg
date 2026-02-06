@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2931.8499999999995 176" width="2931.8499999999995" height="176" style="--bg:#0d1117;--fg:#e6edf3;--line:#3d444d;--accent:#4493f8;--muted:#9198a1;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 30%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="4.8" refX="8" refY="2.4" orient="auto">
+    <polygon points="0 0, 8 2.4, 0 4.8" fill="var(--_arrow)" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="4.8" refX="0" refY="2.4" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
+  </marker>
+</defs>
+<rect x="40" y="40" width="966.05" height="96" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="40" width="966.05" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;CLI Commands&quot;</text>
+<rect x="1046.05" y="40" width="1194.85" height="96" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="1046.05" y="40" width="1194.85" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="1058.05" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Built-in Rules&quot;</text>
+<rect x="2280.8999999999996" y="40" width="610.95" height="96" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="2280.8999999999996" y="40" width="610.95" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="2292.8999999999996" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Output&quot;</text>
+<polyline points="1006.05,106 1046.05,106" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2240.8999999999996,106 2280.8999999999996,106" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<rect x="55.99999999999999" y="88" width="124.95" height="36" rx="0" ry="0" fill="#58a6ff" stroke="#58a6ff" stroke-width="0.75" />
+<rect x="204.95" y="88" width="146.4" height="36" rx="0" ry="0" fill="#58a6ff" stroke="#58a6ff" stroke-width="0.75" />
+<rect x="375.34999999999997" y="88" width="132.10000000000002" height="36" rx="0" ry="0" fill="#3fb950" stroke="#3fb950" stroke-width="0.75" />
+<rect x="531.45" y="88" width="153.55" height="36" rx="0" ry="0" fill="#58a6ff" stroke="#58a6ff" stroke-width="0.75" />
+<rect x="709" y="88" width="139.25" height="36" rx="0" ry="0" fill="#a371f7" stroke="#a371f7" stroke-width="0.75" />
+<rect x="872.25" y="88" width="117.80000000000001" height="36" rx="0" ry="0" fill="#f0883e" stroke="#f0883e" stroke-width="0.75" />
+<rect x="1062.05" y="88" width="196.45000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1282.5" y="88" width="175" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1481.5" y="88" width="239.35000000000002" height="36" rx="0" ry="0" fill="#f85149" stroke="#f85149" stroke-width="0.75" />
+<rect x="1744.85" y="88" width="167.85000000000002" height="36" rx="0" ry="0" fill="#f85149" stroke="#f85149" stroke-width="0.75" />
+<rect x="1936.6999999999998" y="88" width="146.4" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2107.1" y="88" width="117.80000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2296.8999999999996" y="88" width="103.5" height="36" rx="0" ry="0" fill="#21262d" stroke="#30363d" stroke-width="0.75" />
+<rect x="2424.3999999999996" y="88" width="160.70000000000002" height="36" rx="0" ry="0" fill="#21262d" stroke="#30363d" stroke-width="0.75" />
+<rect x="2609.0999999999995" y="88" width="124.95" height="36" rx="0" ry="0" fill="#21262d" stroke="#30363d" stroke-width="0.75" />
+<rect x="2758.0499999999997" y="88" width="117.80000000000001" height="36" rx="0" ry="0" fill="#21262d" stroke="#30363d" stroke-width="0.75" />
+<text x="118.475" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;camouf init&quot;</text>
+<text x="278.15" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;camouf analyze&quot;</text>
+<text x="441.4" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;camouf watch&quot;</text>
+<text x="608.225" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;camouf validate&quot;</text>
+<text x="778.625" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;camouf report&quot;</text>
+<text x="931.15" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;camouf fix&quot;</text>
+<text x="1160.2749999999999" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;circular-dependencies&quot;</text>
+<text x="1370" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;layer-dependencies&quot;</text>
+<text x="1601.175" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;function-signature-matching&quot;</text>
+<text x="1828.7749999999999" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;hardcoded-secrets&quot;</text>
+<text x="2009.8999999999999" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ddd-boundaries&quot;</text>
+<text x="2166" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;+7 more...&quot;</text>
+<text x="2348.6499999999996" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Terminal&quot;</text>
+<text x="2504.7499999999995" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;VS Code Problems&quot;</text>
+<text x="2671.5749999999994" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;HTML Report&quot;</text>
+<text x="2816.95" y="106" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;JSON/SARIF&quot;</text>
+</svg>

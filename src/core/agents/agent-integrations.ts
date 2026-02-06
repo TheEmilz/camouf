@@ -89,6 +89,15 @@ async function generateClaudeIntegration(
     result.filesSkipped.push('.claude/commands/camouf-fix.md');
   }
 
+  // 3b. Generate .claude/commands/camouf-fix-signatures.md
+  const fixSignaturesCommandPath = path.join(claudeCommandsDir, 'camouf-fix-signatures.md');
+  if (!fs.existsSync(fixSignaturesCommandPath) || options.force) {
+    fs.writeFileSync(fixSignaturesCommandPath, getClaudeFixSignaturesCommand());
+    result.filesCreated.push('.claude/commands/camouf-fix-signatures.md');
+  } else {
+    result.filesSkipped.push('.claude/commands/camouf-fix-signatures.md');
+  }
+
   // 4. Generate .claude/rules/camouf.md
   const claudeRulesDir = path.join(projectRoot, '.claude', 'rules');
   if (!fs.existsSync(claudeRulesDir)) {
@@ -171,6 +180,7 @@ Camouf validates 12 builtin rules (configured in \`camouf.config.json\`):
 | \`api-versioning\` | API endpoints must include version prefix |
 | \`data-flow-integrity\` | Input validation and output sanitization required |
 | \`contract-mismatch\` | Shared types must be consistent across layers |
+| \`function-signature-matching\` | Function names and parameters must match across frontend/backend |
 | \`distributed-transactions\` | Multi-service calls need saga/compensation |
 | \`resilience-patterns\` | HTTP calls need timeout, retry, circuit breaker |
 
@@ -275,6 +285,76 @@ Run Camouf to find and fix architecture violations.
 - **security-context**: Add authentication/authorization guards to routes
 - **performance-antipatterns**: Replace N+1 queries with batch operations, sync I/O with async
 - **type-safety**: Replace \`any\` with proper types, add return type annotations
+- **function-signature-matching**: Rename functions/fields to match the shared contract definition
+`;
+}
+
+function getClaudeFixSignaturesCommand(): string {
+  return `---
+description: Fix function signature mismatches between frontend and backend code
+allowed-tools: Read, Grep, Bash, Write
+---
+
+Fix function signature mismatches detected by Camouf.
+
+**Important**: Always use \`npx camouf\` to run Camouf. Do NOT use \`node camouf.js\` or bare \`camouf\`.
+
+## Background
+
+AI coding agents often work with limited context windows and may create mismatched function names
+or type field names between frontend and backend code. For example:
+
+- Backend defines \`getUserById(id)\` but frontend calls \`getUser(userId)\`
+- Shared DTO has \`email\` field but frontend accesses \`userEmail\`
+
+These mismatches compile successfully but cause runtime errors.
+
+## Steps
+
+1. Run: \`npx camouf validate --format json --ci --rules function-signature-matching\`
+2. Parse the JSON output to find violations with \`ruleId: "function-signature-matching"\`
+3. For each violation:
+   - The \`metadata.expected\` field contains the correct name (as defined in shared contracts)
+   - The \`metadata.found\` field contains the incorrect name being used
+   - The \`metadata.definedIn\` shows where the correct definition is
+   - Read the file at \`violation.file\` line \`violation.line\`
+   - Rename \`found\` to \`expected\` in that location
+4. Re-run validation to confirm fixes
+5. Report summary of fixes applied
+
+## Alternative: Use the fix command
+
+You can also use Camouf's built-in fix command:
+
+\`\`\`bash
+# Interactive mode - confirm each fix
+npx camouf fix-signatures --interactive
+
+# Fix all automatically
+npx camouf fix-signatures --all
+
+# Fix specific mismatch by ID
+npx camouf fix --id sig-001
+
+# Dry run to see what would be fixed
+npx camouf fix-signatures --all --dry-run
+\`\`\`
+
+## Example Violation
+
+\`\`\`json
+{
+  "ruleId": "function-signature-matching",
+  "message": "Function name mismatch: 'getUser' called but 'getUserById' is defined",
+  "file": "src/frontend/api.ts",
+  "line": 42,
+  "metadata": {
+    "expected": "getUserById",
+    "found": "getUser",
+    "definedIn": { "file": "src/shared/api-contracts.ts", "line": 15 }
+  }
+}
+\`\`\`
 `;
 }
 
@@ -364,8 +444,24 @@ The following rules are enforced (configured in \`camouf.config.json\`):
 - \`api-versioning\` — API endpoints must include version prefix
 - \`data-flow-integrity\` — Input validation and output sanitization
 - \`contract-mismatch\` — Shared types must be consistent
+- \`function-signature-matching\` — Function/field names must match across frontend/backend
 - \`distributed-transactions\` — Multi-service calls need saga/compensation
 - \`resilience-patterns\` — HTTP calls need timeout, retry, circuit breaker
+
+### Signature Mismatch Fixing
+
+Camouf can detect and fix function/field name mismatches caused by AI context loss:
+
+\`\`\`bash
+# Find signature mismatches
+npx camouf validate --format json --ci --rules function-signature-matching
+
+# Fix all mismatches
+npx camouf fix-signatures --all
+
+# Fix single mismatch
+npx camouf fix --id sig-001
+\`\`\`
 
 ### Workflow
 
