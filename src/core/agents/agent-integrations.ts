@@ -140,7 +140,9 @@ function getClaudeMdContent(): string {
 This project uses [Camouf](https://www.npmjs.com/package/camouf) for real-time architecture monitoring.
 Camouf enforces architecture rules (layer dependencies, circular dependencies, security, DDD boundaries, and more).
 
-### Quick Commands
+### How to Run Camouf
+
+**Always use \`npx camouf\` to invoke the CLI.** Do NOT use \`node camouf.js\` or \`camouf\` directly.
 
 \`\`\`bash
 # One-shot validation (JSON output for parsing)
@@ -198,6 +200,8 @@ function getCamoufClaudeSection(): string {
 
 This project uses [Camouf](https://www.npmjs.com/package/camouf) for architecture monitoring.
 
+**Always use \`npx camouf\` to invoke the CLI.** Do NOT use \`node camouf.js\` or \`camouf\` directly.
+
 ### Quick Commands
 
 \`\`\`bash
@@ -220,7 +224,9 @@ description: Run Camouf architecture validation and fix any violations found
 allowed-tools: Read, Grep, Bash, Write
 ---
 
-Run Camouf to validate the project architecture:
+Run Camouf to validate the project architecture.
+
+**Important**: Always use \`npx camouf\` to run Camouf. Do NOT use \`node camouf.js\` or bare \`camouf\`.
 
 1. Execute: \`npx camouf validate --format json --ci\`
 2. Parse the JSON output to identify violations
@@ -245,7 +251,9 @@ description: Run Camouf and automatically fix all architecture violations
 allowed-tools: Read, Grep, Bash, Write
 ---
 
-Run Camouf to find and fix architecture violations:
+Run Camouf to find and fix architecture violations.
+
+**Important**: Always use \`npx camouf\` to run Camouf. Do NOT use \`node camouf.js\` or bare \`camouf\`.
 
 1. Execute: \`npx camouf validate --format json --ci\`
 2. Parse the JSON output
@@ -286,6 +294,8 @@ When writing or modifying code in this project, follow these architecture princi
 - Validate all user inputs before processing
 - Add timeout, retry, and error handling to external HTTP calls
 
+**Always use \`npx camouf\` to invoke the CLI.** Do NOT use \`node camouf.js\` or bare \`camouf\`.
+
 Run \`npx camouf validate --format json --ci\` to check compliance.
 `;
 }
@@ -297,6 +307,8 @@ function getAgentsMdContent(): string {
 
 This project uses [Camouf](https://www.npmjs.com/package/camouf) for real-time architecture monitoring.
 Camouf enforces architecture rules and catches violations before they reach production.
+
+**Always use \`npx camouf\` to invoke the CLI.** Do NOT use \`node camouf.js\` or bare \`camouf\`.
 
 ### Commands
 
@@ -377,6 +389,8 @@ function getCamoufAgentsSection(): string {
   return `## Camouf — Architecture Monitoring
 
 This project uses [Camouf](https://www.npmjs.com/package/camouf) for architecture monitoring.
+
+**Always use \`npx camouf\` to invoke the CLI.** Do NOT use \`node camouf.js\` or bare \`camouf\`.
 
 ### Commands
 
