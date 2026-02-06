@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-02-06
+
+### Fixed
+- `camouf init --agent <type>` now implies `--yes` (non-interactive mode) so AI agents don't hang on interactive prompts
+- Previously required `--yes` flag in addition to `--agent`, which broke agent workflows
+
 ## [0.3.0] - 2026-02-04
 
 ### Added
