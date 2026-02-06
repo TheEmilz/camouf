@@ -18,11 +18,13 @@ export const validateCommand = new Command('validate')
   .option('-c, --config <path>', 'Path to configuration file')
   .option('--rules <rules>', 'Comma-separated list of rules to run')
   .option('--fix', 'Attempt to auto-fix violations where possible')
-  .option('--format <format>', 'Output format (text, json, sarif)', 'text')
+  .option('--format <format>', 'Output format (text, json, sarif, vscode)', 'text')
   .option('--output <path>', 'Write report to file')
   .option('--fail-on <severity>', 'Fail on severity level (error, warning, info)', 'error')
+  .option('--ci', 'CI/agent mode: no spinners, no colors, machine-parseable output')
   .action(async (options) => {
-    const spinner = ora('Loading configuration...').start();
+    const isCIMode = options.ci || options.format === 'json' || options.format === 'sarif' || options.format === 'vscode' || !!process.env.CI || !!process.env.CAMOUF_CI;
+    const spinner = isCIMode ? null : ora('Loading configuration...').start();
 
     try {
       // Load configuration
@@ -30,12 +32,13 @@ export const validateCommand = new Command('validate')
       const config = await configManager.loadConfig(options.config);
       
       if (!config) {
-        spinner.fail('No configuration found. Run "camouf init" first.');
+        if (spinner) spinner.fail('No configuration found. Run "camouf init" first.');
+        else console.error('ERROR: No configuration found. Run "camouf init" first.');
         process.exit(1);
       }
 
       // Initialize components
-      spinner.text = 'Scanning project...';
+      if (spinner) spinner.text = 'Scanning project...';
       const scanner = new ProjectScanner(config);
       const ruleEngine = new RuleEngine(config);
       const reporter = new ViolationReporter(config);
@@ -48,21 +51,21 @@ export const validateCommand = new Command('validate')
 
       // Scan project
       const graph = await scanner.scan();
-      spinner.succeed(`Scanned ${graph.nodeCount()} files`);
+      if (spinner) spinner.succeed(`Scanned ${graph.nodeCount()} files`);
 
       // Validate
-      spinner.start('Running validation...');
+      if (spinner) spinner.start('Running validation...');
       const fileContents = scanner.getFileContents();
       const violations = await ruleEngine.validate(graph, fileContents);
       
       // Auto-fix if requested
       if (options.fix) {
-        spinner.text = 'Applying auto-fixes...';
+        if (spinner) spinner.text = 'Applying auto-fixes...';
         const fixed = await ruleEngine.autoFix(violations);
-        spinner.succeed(`Applied ${fixed} auto-fixes`);
+        if (spinner) spinner.succeed(`Applied ${fixed} auto-fixes`);
       }
 
-      spinner.stop();
+      if (spinner) spinner.stop();
 
       // Report results
       const report = reporter.generateReport(violations, {
@@ -90,10 +93,16 @@ export const validateCommand = new Command('validate')
         process.exit(1);
       }
 
-      Logger.success('\n✅ Validation passed!\n');
+      if (!isCIMode) {
+        Logger.success('\n✅ Validation passed!\n');
+      }
 
     } catch (error) {
-      spinner.fail(`Validation failed: ${(error as Error).message}`);
+      if (spinner) {
+        spinner.fail(`Validation failed: ${(error as Error).message}`);
+      } else {
+        console.error(`ERROR: Validation failed: ${(error as Error).message}`);
+      }
       process.exit(1);
     }
   });

@@ -22,9 +22,11 @@ export const watchCommand = new Command('watch')
   .option('--rules <rules>', 'Comma-separated list of rules to run')
   .option('--ignore <patterns>', 'Additional patterns to ignore')
   .option('--format <format>', 'Output format (text, vscode)', 'text')
+  .option('--ci', 'CI/agent mode: no spinners, no colors, machine-parseable output')
   .action(async (options) => {
     const isVSCodeFormat = options.format === 'vscode';
-    const spinner = isVSCodeFormat ? null : ora('Loading configuration...').start();
+    const isCIMode = options.ci || isVSCodeFormat || !!process.env.CI || !!process.env.CAMOUF_CI;
+    const spinner = isCIMode ? null : ora('Loading configuration...').start();
 
     try {
       // Load configuration

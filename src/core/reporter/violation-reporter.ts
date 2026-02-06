@@ -281,8 +281,8 @@ export class ViolationReporter {
         tool: {
           driver: {
             name: 'Camouf',
-            version: '0.1.0',
-            informationUri: 'https://github.com/camouf/camouf',
+            version: '0.3.0',
+            informationUri: 'https://github.com/TheEmilz/camouf',
             rules: this.getUniqueRules(violations),
           },
         },

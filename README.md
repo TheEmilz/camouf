@@ -90,8 +90,9 @@ Initialize Camouf configuration in your project.
 camouf init [options]
 
 Options:
-  -f, --force     Overwrite existing configuration
-  -t, --template  Use a predefined template (clean-architecture, microservices, monolith)
+  -f, --force           Overwrite existing configuration
+  -t, --template        Use a predefined template (clean-architecture, microservices, monolith)
+  --agent <type>        Generate agent integration files (claude, codex, all)
 ```
 
 ### `camouf analyze`
@@ -120,6 +121,7 @@ Options:
   -c, --config <path>   Path to configuration file
   --debounce <ms>       Debounce time in milliseconds (default: 300)
   --format <format>     Output format: text (default), vscode
+  --ci                  CI/agent mode: no spinners, no colors
 ```
 
 ### `camouf validate`
@@ -134,6 +136,7 @@ Options:
   --format <format>     Output format: text (default), json, sarif, vscode
   --strict              Fail on warnings
   --bail                Exit on first error
+  --ci                  CI/agent mode: no spinners, no colors
 ```
 
 ### `camouf report`
@@ -335,7 +338,90 @@ If you didn't run `camouf init` or need to add tasks manually, create `.vscode/t
 }
 ```
 
+## AI Agent Integration
+
+Camouf integrates natively with AI coding agents. Use `camouf init --agent` to generate the appropriate configuration files.
+
+### Claude Code
+
+```bash
+camouf init --agent claude
+```
+
+This creates:
+- **`CLAUDE.md`** — Project instructions teaching Claude how to use Camouf
+- **`.claude/commands/camouf-validate.md`** — `/camouf-validate` slash command for architecture-aware validation
+- **`.claude/commands/camouf-fix.md`** — `/camouf-fix` slash command to automatically fix violations
+- **`.claude/rules/camouf.md`** — Architecture rules loaded into every Claude session
+
+Claude Code will automatically read these files and enforce architecture rules when writing code.
+
+### OpenAI Codex
+
+```bash
+camouf init --agent codex
+```
+
+This creates:
+- **`AGENTS.md`** — Agent instructions with Camouf commands, output format, and workflow
+
+Codex reads `AGENTS.md` and knows how to validate architecture before committing.
+
+### All Agents
+
+```bash
+camouf init --agent all
+```
+
+Generates integration files for all supported agents (Claude Code + Codex).
+
+### Machine-Readable Output
+
+For agent consumption, use JSON output with CI mode:
+
+```bash
+npx camouf validate --format json --ci
+```
+
+Output:
+
+```json
+{
+  "summary": { "total": 2, "errors": 1, "warnings": 1, "info": 0 },
+  "violations": [
+    {
+      "ruleId": "hardcoded-secrets",
+      "severity": "error",
+      "message": "Potential hardcoded API key found",
+      "file": "src/config.ts",
+      "line": 15,
+      "suggestion": "Move to environment variable"
+    }
+  ]
+}
+```
+
 ## CI/CD Integration
+
+### Non-Interactive Mode
+
+Use `--ci` flag or `CAMOUF_CI=1` environment variable for agent/CI environments:
+
+```bash
+# Suppress spinners, colors, interactive prompts
+npx camouf validate --ci
+
+# JSON output automatically enables CI mode
+npx camouf validate --format json
+
+# Environment variable alternative
+CAMOUF_CI=1 npx camouf validate
+```
+
+### Exit Codes
+
+- `0` — No violations found
+- `1` — Violations found (or error)
 
 ### GitHub Actions
 

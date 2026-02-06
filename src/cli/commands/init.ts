@@ -4,12 +4,14 @@
  * Initializes a new Camouf configuration in the current project.
  * Creates camouf.config.json with default settings.
  * Creates .vscode/tasks.json for real-time Problems integration.
+ * Optionally generates agent integration files (CLAUDE.md, AGENTS.md).
  */
 
 import { Command } from 'commander';
 import { ConfigurationManager } from '../../core/config/configuration-manager.js';
 import { Logger } from '../../core/logger.js';
 import { ProjectDetector } from '../../core/scanner/project-detector.js';
+import { generateAgentIntegration, AgentType } from '../../core/agents/agent-integrations.js';
 import inquirer from 'inquirer';
 import ora from 'ora';
 import * as fs from 'fs';
@@ -20,6 +22,7 @@ export const initCommand = new Command('init')
   .option('-y, --yes', 'Skip interactive prompts and use defaults')
   .option('-f, --force', 'Overwrite existing configuration')
   .option('--template <template>', 'Use a predefined template (monorepo, microservices, fullstack)')
+  .option('--agent <type>', 'Generate agent integration files (claude, codex, all)')
   .action(async (options) => {
     const spinner = ora('Detecting project structure...').start();
 
@@ -107,6 +110,33 @@ export const initCommand = new Command('init')
       await createVSCodeIntegration(process.cwd());
       spinner.succeed('VS Code integration configured');
 
+      // Generate agent integration files if requested
+      if (options.agent) {
+        const agentType = options.agent as AgentType;
+        const validTypes: AgentType[] = ['claude', 'codex', 'all'];
+        
+        if (!validTypes.includes(agentType)) {
+          Logger.error(`Invalid agent type: ${agentType}. Use: claude, codex, or all`);
+        } else {
+          spinner.start(`Setting up ${agentType} agent integration...`);
+          const agentResult = await generateAgentIntegration(process.cwd(), agentType, { force: options.force });
+          spinner.succeed(`Agent integration configured`);
+          
+          if (agentResult.filesCreated.length > 0) {
+            Logger.info('\n  Agent files created:');
+            for (const file of agentResult.filesCreated) {
+              Logger.info(`    ✓ ${file}`);
+            }
+          }
+          if (agentResult.filesSkipped.length > 0) {
+            Logger.info('  Agent files skipped (already exist):');
+            for (const file of agentResult.filesSkipped) {
+              Logger.info(`    - ${file}`);
+            }
+          }
+        }
+      }
+
       Logger.success('\n✨ Camouf initialized successfully!');
       Logger.info('\nNext steps:');
       Logger.info('  1. Review and customize camouf.config.json');
@@ -114,7 +144,16 @@ export const initCommand = new Command('init')
       Logger.info('  3. For real-time Problems in VS Code:');
       Logger.info('     - Press Ctrl+Shift+B and select "camouf: Watch"');
       Logger.info('     - Or run Terminal > Run Task > camouf: Watch');
-      Logger.info('  4. Violations will appear in the Problems panel (Ctrl+Shift+M)\n');
+      Logger.info('  4. Violations will appear in the Problems panel (Ctrl+Shift+M)');
+      
+      if (!options.agent) {
+        Logger.info('\n  💡 Tip: Use --agent to set up AI agent integration:');
+        Logger.info('     camouf init --agent claude    # Claude Code (CLAUDE.md + commands)');
+        Logger.info('     camouf init --agent codex     # OpenAI Codex (AGENTS.md)');
+        Logger.info('     camouf init --agent all       # All agent integrations\n');
+      } else {
+        Logger.info('');
+      }
 
     } catch (error) {
       spinner.fail(`Initialization failed: ${(error as Error).message}`);
