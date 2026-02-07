@@ -1,7 +1,7 @@
 {
   "name": "camouf",
-  "version": "0.4.2",
-  "description": "Real-time architecture monitoring CLI tool with multi-language support",
+  "version": "0.5.0",
+  "description": "Architecture guardrails for AI-generated code - catches the mistakes AI coding assistants make",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
@@ -36,6 +36,12 @@
     "claude-code",
     "codex",
     "ai-agent",
+    "ai-generated-code",
+    "mcp",
+    "model-context-protocol",
+    "cursor",
+    "copilot",
+    "hallucination-detection",
     "CLAUDE.md",
     "AGENTS.md"
   ],
@@ -49,6 +55,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "ajv": "^8.12.0",
     "boxen": "^8.0.1",
     "chalk": "^5.3.0",

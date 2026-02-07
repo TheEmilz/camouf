@@ -37,3 +37,13 @@ INTERNAL_DOCS.md
 
 # Test folder for signature matching
 test-signature-matching/
+
+# Internal roadmap (non commitare)
+ROADMAP-INTERNAL.md
+
+# MCP debug files
+mcp-*.txt
+
+# Plugin development (published separately to npm)
+# camouf-plugin-react/node_modules/ is already covered by node_modules/ above
+camouf-plugin-react/dist/

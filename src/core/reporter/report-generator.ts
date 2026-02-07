@@ -15,7 +15,7 @@ import { generateSignatureReportHTML } from './signature-report.template.js';
 interface ReportOptions {
   graph: DependencyGraph;
   violations: Violation[];
-  format: 'html' | 'pdf' | 'json' | 'markdown';
+  format: 'html' | 'pdf' | 'json' | 'jsond' | 'markdown';
   outputPath: string;
   includeCode?: boolean;
   includeGraphs?: boolean;
@@ -39,6 +39,9 @@ export class ReportGenerator {
         break;
       case 'json':
         await this.generateJsonReport(options);
+        break;
+      case 'jsond':
+        await this.generateJsonDReport(options);
         break;
       case 'markdown':
         await this.generateMarkdownReport(options);
@@ -418,6 +421,225 @@ export class ReportGenerator {
       path.join(options.outputPath, 'report.json'),
       JSON.stringify(report, null, 2)
     );
+  }
+
+  /**
+   * Generate JSOND (JSON with Descriptions) report optimized for AI agents.
+   * This format includes rich context, descriptions, and metadata that
+   * AI coding assistants can easily parse and act upon.
+   */
+  private async generateJsonDReport(options: ReportOptions): Promise<void> {
+    const { graph, violations } = options;
+    const summary = this.calculateSummary(graph, violations);
+    const timestamp = new Date().toISOString();
+
+    const report = {
+      "$schema": "https://camouf.dev/schemas/jsond-report.json",
+      "$description": "Camouf Architecture Analysis Report - JSOND format optimized for AI agents",
+      "metadata": {
+        "tool": "camouf",
+        "version": "0.4.2",
+        "project_name": this.config.name || "Project",
+        "timestamp": timestamp,
+        "format": "jsond",
+        "format_description": "JSON with Descriptions - A structured format designed for AI agent consumption with rich context and actionable information"
+      },
+      "summary": {
+        "description": "Overview of the architecture analysis results",
+        "total_files": summary.totalFiles,
+        "total_dependencies": summary.totalDependencies,
+        "health_score": {
+          "value": summary.healthScore,
+          "description": "Architecture health score from 0-100. Higher is better."
+        },
+        "violations": {
+          "total": violations.length,
+          "by_severity": {
+            "errors": {
+              "count": summary.errors,
+              "description": "Critical violations that must be fixed - these indicate architectural problems that could cause runtime failures or security issues"
+            },
+            "warnings": {
+              "count": summary.warnings,
+              "description": "Important violations that should be addressed - these indicate architectural patterns that deviate from best practices"
+            },
+            "info": {
+              "count": summary.info,
+              "description": "Informational notices - suggestions for improving architecture that are not critical"
+            }
+          }
+        }
+      },
+      "architecture": {
+        "description": "Dependency graph analysis of the project",
+        "files": graph.nodes().map(nodeId => {
+          const node = graph.node(nodeId);
+          return {
+            "path": node?.data.relativePath,
+            "language": node?.data.language,
+            "layer": node?.data.layer,
+            "metrics": {
+              "outgoing_dependencies": (graph.outEdges(nodeId) || []).length,
+              "incoming_dependents": (graph.inEdges(nodeId) || []).length
+            }
+          };
+        }),
+        "layer_structure": this.describeLayers()
+      },
+      "violations": {
+        "description": "All architecture violations found during analysis",
+        "items": violations.map(v => ({
+          "id": v.id,
+          "rule": {
+            "id": v.ruleId,
+            "name": v.ruleName,
+            "description": this.getRuleDescription(v.ruleId)
+          },
+          "severity": v.severity,
+          "severity_description": this.getSeverityDescription(v.severity),
+          "location": {
+            "file": v.file,
+            "line": v.line || null,
+            "column": v.column || null
+          },
+          "message": v.message,
+          "suggestion": v.suggestion || null,
+          "is_fixable": v.fixable || false,
+          "fix_command": v.fixable && v.id ? `npx camouf fix --id ${v.id}` : null
+        }))
+      },
+      "action_items": this.generateActionItemsForReport(violations),
+      "ai_instructions": {
+        "description": "Instructions for AI agents processing this report",
+        "recommended_workflow": [
+          "1. Review the summary to understand the scope of issues",
+          "2. Check the health_score - below 70 indicates significant problems",
+          "3. Prioritize errors over warnings over info",
+          "4. Address violations file by file for focused fixes",
+          "5. Use the 'suggestion' field when available for recommended fixes",
+          "6. Re-run validation after fixes to confirm resolution"
+        ],
+        "fix_commands": {
+          "single_fix": "npx camouf fix --id <violation_id>",
+          "signature_fixes": "npx camouf fix-signatures --all",
+          "dry_run": "npx camouf fix-signatures --all --dry-run",
+          "validate": "npx camouf validate --format jsond"
+        }
+      }
+    };
+
+    await fs.writeFile(
+      path.join(options.outputPath, 'report.jsond.json'),
+      JSON.stringify(report, null, 2)
+    );
+
+    Logger.info(`JSOND report written to ${options.outputPath}/report.jsond.json`);
+  }
+
+  /**
+   * Describe the layer structure for JSOND report
+   */
+  private describeLayers(): Array<Record<string, unknown>> {
+    return this.config.layers.map(layer => ({
+      "name": layer.name,
+      "type": layer.type,
+      "directories": layer.directories,
+      "allowed_dependencies": layer.allowedDependencies,
+      "forbidden_dependencies": layer.forbiddenDependencies || []
+    }));
+  }
+
+  /**
+   * Get description for a severity level
+   */
+  private getSeverityDescription(severity: string): string {
+    switch (severity) {
+      case 'error':
+        return 'Critical issue that must be fixed to maintain architectural integrity';
+      case 'warning':
+        return 'Important issue that should be addressed to follow best practices';
+      case 'info':
+        return 'Informational suggestion for improving code architecture';
+      default:
+        return 'Architecture violation';
+    }
+  }
+
+  /**
+   * Get description for a rule ID
+   */
+  private getRuleDescription(ruleId: string): string {
+    const descriptions: Record<string, string> = {
+      'layer-dependencies': 'Validates that dependencies between architectural layers follow the defined rules',
+      'circular-dependencies': 'Detects circular dependency chains that can cause maintenance issues',
+      'function-signature-matching': 'Ensures function names and signatures match between definitions and usages',
+      'hardcoded-secrets': 'Detects hardcoded API keys, passwords, and other sensitive data',
+      'performance-antipatterns': 'Identifies common performance issues like N+1 queries',
+      'type-safety': 'Checks for unsafe type usage and type coercion issues',
+      'data-flow-integrity': 'Validates data flow patterns and input sanitization',
+      'security-context': 'Ensures authentication and authorization patterns are correctly implemented',
+      'resilience-patterns': 'Validates circuit breaker, retry, and timeout pattern usage',
+      'distributed-transactions': 'Checks for proper handling of distributed transaction boundaries',
+      'ddd-boundaries': 'Validates Domain-Driven Design principles and bounded contexts',
+      'api-versioning': 'Ensures API versioning follows consistent patterns',
+      'contract-mismatch': 'Detects mismatches between API contracts and implementations'
+    };
+    return descriptions[ruleId] || 'Architecture rule violation';
+  }
+
+  /**
+   * Generate action items from violations for JSOND report
+   */
+  private generateActionItemsForReport(violations: Violation[]): Array<Record<string, unknown>> {
+    const actionItems: Array<Record<string, unknown>> = [];
+    const errors = violations.filter(v => v.severity === 'error');
+    const warnings = violations.filter(v => v.severity === 'warning');
+
+    if (errors.length > 0) {
+      const errorFiles = [...new Set(errors.map(v => v.file))];
+      actionItems.push({
+        "priority": "high",
+        "action": "Fix critical errors",
+        "description": `There are ${errors.length} error-level violations that need immediate attention`,
+        "affected_files": errorFiles.slice(0, 10),
+        "affected_files_count": errorFiles.length
+      });
+    }
+
+    if (warnings.length > 0) {
+      const warningFiles = [...new Set(warnings.map(v => v.file))];
+      actionItems.push({
+        "priority": "medium",
+        "action": "Address warnings",
+        "description": `There are ${warnings.length} warning-level violations that should be reviewed`,
+        "affected_files": warningFiles.slice(0, 10),
+        "affected_files_count": warningFiles.length
+      });
+    }
+
+    // Check for signature mismatches specifically
+    const signatureMismatches = violations.filter(v => v.ruleId === 'function-signature-matching');
+    if (signatureMismatches.length > 0) {
+      actionItems.push({
+        "priority": "high",
+        "action": "Fix function signature mismatches",
+        "description": `${signatureMismatches.length} function signature mismatches detected - these can cause runtime errors`,
+        "quick_fix": "npx camouf fix-signatures --all"
+      });
+    }
+
+    // Check for hardcoded secrets
+    const secrets = violations.filter(v => v.ruleId === 'hardcoded-secrets');
+    if (secrets.length > 0) {
+      actionItems.push({
+        "priority": "critical",
+        "action": "Remove hardcoded secrets",
+        "description": `${secrets.length} hardcoded secret(s) detected - these are security vulnerabilities`,
+        "recommendation": "Move secrets to environment variables or a secrets manager"
+      });
+    }
+
+    return actionItems;
   }
 
   private async generateMarkdownReport(options: ReportOptions): Promise<void> {

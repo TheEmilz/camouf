@@ -18,7 +18,7 @@ export const analyzeCommand = new Command('analyze')
   .option('--depth <number>', 'Maximum depth for dependency analysis', '5')
   .option('--focus <path>', 'Focus analysis on specific file or directory')
   .option('--output <path>', 'Output directory for visualization files')
-  .option('--format <format>', 'Output format (html, json, dot)', 'html')
+  .option('--format <format>', 'Output format (html, json, jsond, dot)', 'html')
   .option('--metrics', 'Include code metrics in analysis')
   .option('--coupling', 'Analyze coupling between modules')
   .action(async (options) => {
