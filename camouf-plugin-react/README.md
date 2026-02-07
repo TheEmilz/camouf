@@ -4,7 +4,7 @@ React-specific rules for [Camouf](https://github.com/TheEmilz/camouf) — catche
 
 [![npm version](https://img.shields.io/npm/v/camouf-plugin-react.svg)](https://www.npmjs.com/package/camouf-plugin-react)
 
-## 🎯 Why This Plugin?
+## Why This Plugin?
 
 AI coding assistants generate React code that compiles but fails at runtime. This plugin catches:
 
@@ -13,13 +13,13 @@ AI coding assistants generate React code that compiles but fails at runtime. Thi
 - **Inconsistent naming** — Components that don't follow PascalCase
 - **Prop drilling** — Excessive prop passing through component trees
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install --save-dev camouf-plugin-react camouf
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 Add to your `camouf.config.json`:
 
@@ -42,7 +42,7 @@ Add to your `camouf.config.json`:
 }
 ```
 
-## 🔧 Rules
+## Rules
 
 ### `react/missing-dependency-array`
 
@@ -51,12 +51,12 @@ Detects React hooks with missing variables in dependency arrays.
 **AI Error Pattern:** AI forgets to add used variables to the dependency array.
 
 ```tsx
-// ❌ AI generates this:
+// Bad - AI generates this:
 useEffect(() => {
   fetchData(userId);
 }, []); // userId missing!
 
-// ✅ Should be:
+// Good - Should be:
 useEffect(() => {
   fetchData(userId);
 }, [userId]);
@@ -82,12 +82,12 @@ Detects React components not following PascalCase naming convention.
 **AI Error Pattern:** AI switches between naming conventions mid-session.
 
 ```tsx
-// ❌ AI generates this:
+// Bad - AI generates this:
 function userProfile() { // Should be UserProfile
   return <div>...</div>;
 }
 
-// ✅ Should be:
+// Good - Should be:
 function UserProfile() {
   return <div>...</div>;
 }
@@ -114,7 +114,7 @@ Detects props passed through multiple component layers without use.
 **AI Error Pattern:** AI copies props through components instead of using Context.
 
 ```tsx
-// ❌ AI generates deep prop drilling:
+// Bad - AI generates deep prop drilling:
 <App user={user}>           // receives user
   <Layout user={user}>      // receives, passes down
     <Sidebar user={user}>   // receives, passes down
@@ -123,7 +123,7 @@ Detects props passed through multiple component layers without use.
   </Layout>
 </App>
 
-// ✅ Should use Context:
+// Good - Should use Context:
 <UserContext.Provider value={user}>
   <App>
     <Layout>
@@ -156,7 +156,7 @@ Detects potential stale closure issues in React hooks.
 **AI Error Pattern:** AI creates closures that capture stale state values.
 
 ```tsx
-// ❌ AI generates this:
+// Bad - AI generates this:
 useEffect(() => {
   const interval = setInterval(() => {
     console.log(count); // Always logs initial value!
@@ -165,7 +165,7 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
-// ✅ Should use functional update:
+// Good - Should use functional update:
 useEffect(() => {
   const interval = setInterval(() => {
     setCount(c => c + 1); // Functional update
@@ -187,17 +187,17 @@ useEffect(() => {
 }
 ```
 
-## 📊 Example Output
+## Example Output
 
 ```
 camouf validate
 
-✖ react/missing-dependency-array
+[ERROR] react/missing-dependency-array
   src/components/UserProfile.tsx:15
   useEffect is missing 2 dependencies: userId, fetchUser
   Suggestion: Add missing dependencies to the array: [userId, fetchUser]
 
-⚠ react/stale-closure-patterns
+[WARNING] react/stale-closure-patterns
   src/hooks/useCounter.tsx:8
   setInterval callback may have stale closure over: count
   Suggestion: Use functional update (setState(prev => ...)) to access current state
@@ -205,7 +205,7 @@ camouf validate
 Found 2 violations in 0.5s
 ```
 
-## 🚀 Usage with CI/CD
+## Usage with CI/CD
 
 ```yaml
 # .github/workflows/lint.yml
@@ -213,11 +213,11 @@ Found 2 violations in 0.5s
   run: npx camouf validate --format github
 ```
 
-## 📝 License
+## License
 
 Apache-2.0
 
-## 🔗 Related
+## Related
 
 - [Camouf](https://github.com/TheEmilz/camouf) — Main architecture guardrails CLI
 - [Why AI Code Needs Different Guardrails](https://github.com/TheEmilz/camouf/blob/main/docs/ai-agent-challenges.md)
