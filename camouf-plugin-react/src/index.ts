@@ -36,7 +36,7 @@ function createRules(): IRule[] {
 const plugin: CamoufPlugin = {
   metadata: {
     name: 'camouf-plugin-react',
-    version: '0.1.0',
+    version: '0.1.1',
     displayName: 'Camouf React Plugin',
     description: 'React-specific rules for Camouf - catches AI-generated React code errors like missing hook dependencies, stale closures, and prop drilling',
     author: 'TheEmilz',
