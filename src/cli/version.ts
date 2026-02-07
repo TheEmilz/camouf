@@ -2,9 +2,9 @@
  * Version and metadata for Camouf CLI
  */
 
-export const version = '0.3.2';
+export const version = '0.5.0';
 export const name = 'camouf';
-export const description = 'Real-time architecture monitoring CLI tool with multi-language support';
+export const description = 'Architecture guardrails for AI-generated code';
 
 export const metadata = {
   name,

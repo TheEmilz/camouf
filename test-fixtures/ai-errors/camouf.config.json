@@ -1,0 +1,31 @@
+{
+  "name": "ai-errors-test",
+  "root": ".",
+  "languages": ["typescript"],
+  "layers": [],
+  "directories": {
+    "client": [],
+    "server": [],
+    "shared": []
+  },
+  "rules": {
+    "builtin": {
+      "ai-hallucinated-imports": "error",
+      "context-drift-patterns": "warn",
+      "phantom-type-references": "warn",
+      "inconsistent-casing": "warn",
+      "orphaned-functions": "warn",
+      "layer-dependencies": "off",
+      "circular-dependencies": "off",
+      "contract-mismatch": "off",
+      "performance-antipatterns": "off",
+      "type-safety": "off",
+      "hardcoded-secrets": "off",
+      "security-context": "off"
+    }
+  },
+  "patterns": {
+    "include": ["**/*.ts"],
+    "exclude": ["**/node_modules/**", "**/dist/**"]
+  }
+}

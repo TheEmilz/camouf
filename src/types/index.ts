@@ -5,3 +5,4 @@
 
 export * from './config.types.js';
 export * from './core.types.js';
+export * from './plugin.types.js';

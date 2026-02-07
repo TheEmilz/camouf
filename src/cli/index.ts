@@ -13,6 +13,7 @@ import { validateCommand } from './commands/validate.js';
 import { analyzeCommand } from './commands/analyze.js';
 import { reportCommand } from './commands/report.js';
 import { fixCommand, fixSignaturesCommand } from './commands/fix.js';
+import { mcpCommand } from './commands/mcp.js';
 import { Logger } from '../core/logger.js';
 import { version, description } from './version.js';
 
@@ -38,6 +39,7 @@ program.addCommand(analyzeCommand);
 program.addCommand(reportCommand);
 program.addCommand(fixCommand);
 program.addCommand(fixSignaturesCommand);
+program.addCommand(mcpCommand);
 
 // Error handling
 program.exitOverride((err) => {

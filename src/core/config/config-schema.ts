@@ -84,11 +84,46 @@ export const configSchema = {
         },
       },
     },
+    plugins: {
+      type: 'array',
+      description: 'Plugins to load for additional rules, analyzers, or formatters',
+      items: {
+        oneOf: [
+          { type: 'string', description: 'Plugin name (npm package or local path)' },
+          {
+            type: 'object',
+            required: ['name'],
+            properties: {
+              name: { type: 'string', description: 'Plugin name' },
+              enabled: { type: 'boolean', description: 'Whether the plugin is enabled' },
+              options: { type: 'object', description: 'Plugin-specific options' },
+            },
+          },
+        ],
+      },
+    },
     rules: {
       type: 'object',
       properties: {
         builtin: {
           type: 'object',
+          additionalProperties: {
+            oneOf: [
+              { type: 'string', enum: ['off', 'warn', 'error'] },
+              {
+                type: 'object',
+                properties: {
+                  level: { type: 'string', enum: ['off', 'warn', 'error'] },
+                  options: { type: 'object' },
+                },
+                required: ['level'],
+              },
+            ],
+          },
+        },
+        plugin: {
+          type: 'object',
+          description: 'Plugin rules configuration (keyed by rule ID)',
           additionalProperties: {
             oneOf: [
               { type: 'string', enum: ['off', 'warn', 'error'] },
@@ -181,7 +216,7 @@ export const configSchema = {
     output: {
       type: 'object',
       properties: {
-        format: { type: 'string', enum: ['text', 'json', 'sarif', 'html'] },
+        format: { type: 'string', enum: ['text', 'json', 'jsond', 'sarif', 'html'] },
         directory: { type: 'string' },
         showCode: { type: 'boolean' },
       },

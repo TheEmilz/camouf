@@ -140,7 +140,8 @@ export type RuleCategory =
   | 'performance'
   | 'naming'
   | 'structure'
-  | 'best-practices';
+  | 'best-practices'
+  | 'ai-specific';
 
 /**
  * Rule documentation

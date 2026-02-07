@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Script to generate SVG images from Mermaid diagrams using beautiful-mermaid
  * 

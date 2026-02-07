@@ -1,0 +1,42 @@
+{
+  "name": "camouf-plugin-react",
+  "version": "0.1.0",
+  "description": "React-specific rules for Camouf - catches AI-generated React code errors",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "keywords": [
+    "camouf",
+    "camouf-plugin",
+    "react",
+    "hooks",
+    "ai",
+    "linter",
+    "architecture"
+  ],
+  "author": "TheEmilz",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "camouf": ">=0.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheEmilz/camouf.git",
+    "directory": "camouf-plugin-react"
+  },
+  "homepage": "https://github.com/TheEmilz/camouf/tree/main/camouf-plugin-react",
+  "bugs": {
+    "url": "https://github.com/TheEmilz/camouf/issues"
+  }
+}

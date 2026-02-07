@@ -18,12 +18,12 @@ export const validateCommand = new Command('validate')
   .option('-c, --config <path>', 'Path to configuration file')
   .option('--rules <rules>', 'Comma-separated list of rules to run')
   .option('--fix', 'Attempt to auto-fix violations where possible')
-  .option('--format <format>', 'Output format (text, json, sarif, vscode)', 'text')
+  .option('--format <format>', 'Output format (text, json, jsond, sarif, vscode)', 'text')
   .option('--output <path>', 'Write report to file')
   .option('--fail-on <severity>', 'Fail on severity level (error, warning, info)', 'error')
   .option('--ci', 'CI/agent mode: no spinners, no colors, machine-parseable output')
   .action(async (options) => {
-    const isCIMode = options.ci || options.format === 'json' || options.format === 'sarif' || options.format === 'vscode' || !!process.env.CI || !!process.env.CAMOUF_CI;
+    const isCIMode = options.ci || options.format === 'json' || options.format === 'jsond' || options.format === 'sarif' || options.format === 'vscode' || !!process.env.CI || !!process.env.CAMOUF_CI;
     const spinner = isCIMode ? null : ora('Loading configuration...').start();
 
     try {

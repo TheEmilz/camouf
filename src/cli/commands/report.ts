@@ -15,7 +15,7 @@ import ora from 'ora';
 export const reportCommand = new Command('report')
   .description('Generate architecture reports')
   .option('-c, --config <path>', 'Path to configuration file')
-  .option('--format <format>', 'Report format (html, pdf, json, markdown)', 'html')
+  .option('--format <format>', 'Report format (html, pdf, json, jsond, markdown)', 'html')
   .option('--output <path>', 'Output path for report', './camouf-report')
   .option('--include-code', 'Include code snippets in report')
   .option('--include-graphs', 'Include dependency graphs')

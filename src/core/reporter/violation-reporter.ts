@@ -10,7 +10,7 @@ import { Violation, ViolationSeverity } from '../../types/core.types.js';
 import { Logger } from '../logger.js';
 
 interface ReporterOptions {
-  format?: 'text' | 'json' | 'sarif' | 'vscode';
+  format?: 'text' | 'json' | 'jsond' | 'sarif' | 'vscode';
   outputPath?: string;
 }
 
@@ -96,6 +96,8 @@ export class ViolationReporter {
     switch (options.format) {
       case 'json':
         return this.generateJsonReport(violations);
+      case 'jsond':
+        return this.generateJsonDReport(violations);
       case 'sarif':
         return this.generateSarifReport(violations);
       case 'vscode':
@@ -274,6 +276,233 @@ export class ViolationReporter {
         suggestion: v.suggestion,
       })),
     }, null, 2);
+  }
+
+  /**
+   * Generate JSOND (JSON with Descriptions) report optimized for AI agents.
+   * This format includes rich context, descriptions, and metadata that
+   * AI coding assistants can easily parse and act upon.
+   */
+  private generateJsonDReport(violations: Violation[]): string {
+    const timestamp = new Date().toISOString();
+    const groupedByFile = this.groupByFile(violations);
+    const groupedByRule = this.groupByRule(violations);
+    const groupedBySeverity = this.groupBySeverity(violations);
+
+    const report = {
+      "$schema": "https://camouf.dev/schemas/jsond-report.json",
+      "$description": "Camouf Architecture Violations Report - JSOND format optimized for AI agents",
+      "metadata": {
+        "tool": "camouf",
+        "version": "0.4.2",
+        "timestamp": timestamp,
+        "format": "jsond",
+        "format_description": "JSON with Descriptions - A structured format designed for AI agent consumption with rich context and actionable information"
+      },
+      "summary": {
+        "total_violations": this.summary.total,
+        "by_severity": {
+          "errors": {
+            "count": this.summary.errors,
+            "description": "Critical violations that must be fixed - these indicate architectural problems that could cause runtime failures or security issues"
+          },
+          "warnings": {
+            "count": this.summary.warnings,
+            "description": "Important violations that should be addressed - these indicate architectural patterns that deviate from best practices"
+          },
+          "info": {
+            "count": this.summary.info,
+            "description": "Informational notices - suggestions for improving architecture that are not critical"
+          }
+        },
+        "files_affected": groupedByFile.size,
+        "rules_triggered": groupedByRule.size
+      },
+      "analysis": {
+        "description": "Detailed breakdown of all architecture violations found during analysis",
+        "by_file": Array.from(groupedByFile.entries()).map(([file, fileViolations]) => ({
+          "file_path": file,
+          "relative_path": this.getRelativePath(file),
+          "violation_count": fileViolations.length,
+          "violations": fileViolations.map(v => this.formatViolationForJsonD(v))
+        })),
+        "by_rule": Array.from(groupedByRule.entries()).map(([ruleId, ruleViolations]) => ({
+          "rule_id": ruleId,
+          "rule_name": ruleViolations[0]?.ruleName || ruleId,
+          "occurrence_count": ruleViolations.length,
+          "affected_files": [...new Set(ruleViolations.map(v => this.getRelativePath(v.file)))]
+        })),
+        "by_severity": {
+          "errors": groupedBySeverity.get('error')?.map(v => this.formatViolationForJsonD(v)) || [],
+          "warnings": groupedBySeverity.get('warning')?.map(v => this.formatViolationForJsonD(v)) || [],
+          "info": groupedBySeverity.get('info')?.map(v => this.formatViolationForJsonD(v)) || []
+        }
+      },
+      "violations": violations.map(v => this.formatViolationForJsonD(v)),
+      "action_items": this.generateActionItems(violations),
+      "ai_instructions": {
+        "description": "Instructions for AI agents processing this report",
+        "recommended_workflow": [
+          "1. Review the summary to understand the scope of issues",
+          "2. Prioritize errors over warnings over info",
+          "3. Address violations file by file for focused fixes",
+          "4. Use the 'suggestion' field when available for recommended fixes",
+          "5. Re-run validation after fixes to confirm resolution"
+        ],
+        "fix_commands": {
+          "single_fix": "npx camouf fix --id <violation_id>",
+          "signature_fixes": "npx camouf fix-signatures --all",
+          "dry_run": "npx camouf fix-signatures --all --dry-run"
+        }
+      }
+    };
+
+    return JSON.stringify(report, null, 2);
+  }
+
+  /**
+   * Format a single violation for JSOND output with rich context
+   */
+  private formatViolationForJsonD(violation: Violation): Record<string, unknown> {
+    return {
+      "id": violation.id,
+      "rule": {
+        "id": violation.ruleId,
+        "name": violation.ruleName,
+        "description": this.getRuleDescription(violation.ruleId)
+      },
+      "severity": violation.severity,
+      "severity_description": this.getSeverityDescription(violation.severity),
+      "location": {
+        "file": violation.file,
+        "relative_path": this.getRelativePath(violation.file),
+        "line": violation.line || null,
+        "column": violation.column || null,
+        "end_line": violation.endLine || null,
+        "end_column": violation.endColumn || null
+      },
+      "message": violation.message,
+      "suggestion": violation.suggestion || null,
+      "is_fixable": violation.fixable || false,
+      "fix_command": violation.fixable && violation.id ? `npx camouf fix --id ${violation.id}` : null
+    };
+  }
+
+  /**
+   * Get description for a severity level
+   */
+  private getSeverityDescription(severity: ViolationSeverity): string {
+    switch (severity) {
+      case 'error':
+        return 'Critical issue that must be fixed to maintain architectural integrity';
+      case 'warning':
+        return 'Important issue that should be addressed to follow best practices';
+      case 'info':
+        return 'Informational suggestion for improving code architecture';
+    }
+  }
+
+  /**
+   * Get description for a rule ID
+   */
+  private getRuleDescription(ruleId: string): string {
+    const descriptions: Record<string, string> = {
+      'layer-dependencies': 'Validates that dependencies between architectural layers follow the defined rules',
+      'circular-dependencies': 'Detects circular dependency chains that can cause maintenance issues',
+      'function-signature-matching': 'Ensures function names and signatures match between definitions and usages',
+      'hardcoded-secrets': 'Detects hardcoded API keys, passwords, and other sensitive data',
+      'performance-antipatterns': 'Identifies common performance issues like N+1 queries',
+      'type-safety': 'Checks for unsafe type usage and type coercion issues',
+      'data-flow-integrity': 'Validates data flow patterns and input sanitization',
+      'security-context': 'Ensures authentication and authorization patterns are correctly implemented',
+      'resilience-patterns': 'Validates circuit breaker, retry, and timeout pattern usage',
+      'distributed-transactions': 'Checks for proper handling of distributed transaction boundaries',
+      'ddd-boundaries': 'Validates Domain-Driven Design principles and bounded contexts',
+      'api-versioning': 'Ensures API versioning follows consistent patterns',
+      'contract-mismatch': 'Detects mismatches between API contracts and implementations'
+    };
+    return descriptions[ruleId] || 'Architecture rule violation';
+  }
+
+  /**
+   * Generate action items from violations for AI agents
+   */
+  private generateActionItems(violations: Violation[]): Array<Record<string, unknown>> {
+    const actionItems: Array<Record<string, unknown>> = [];
+    const errors = violations.filter(v => v.severity === 'error');
+    const warnings = violations.filter(v => v.severity === 'warning');
+
+    if (errors.length > 0) {
+      actionItems.push({
+        "priority": "high",
+        "action": "Fix critical errors",
+        "description": `There are ${errors.length} error-level violations that need immediate attention`,
+        "affected_files": [...new Set(errors.map(v => this.getRelativePath(v.file)))]
+      });
+    }
+
+    if (warnings.length > 0) {
+      actionItems.push({
+        "priority": "medium",
+        "action": "Address warnings",
+        "description": `There are ${warnings.length} warning-level violations that should be reviewed`,
+        "affected_files": [...new Set(warnings.map(v => this.getRelativePath(v.file)))]
+      });
+    }
+
+    // Check for signature mismatches specifically
+    const signatureMismatches = violations.filter(v => v.ruleId === 'function-signature-matching');
+    if (signatureMismatches.length > 0) {
+      actionItems.push({
+        "priority": "high",
+        "action": "Fix function signature mismatches",
+        "description": `${signatureMismatches.length} function signature mismatches detected - these can cause runtime errors`,
+        "quick_fix": "npx camouf fix-signatures --all"
+      });
+    }
+
+    // Check for hardcoded secrets
+    const secrets = violations.filter(v => v.ruleId === 'hardcoded-secrets');
+    if (secrets.length > 0) {
+      actionItems.push({
+        "priority": "critical",
+        "action": "Remove hardcoded secrets",
+        "description": `${secrets.length} hardcoded secret(s) detected - these are security vulnerabilities`,
+        "recommendation": "Move secrets to environment variables or a secrets manager"
+      });
+    }
+
+    return actionItems;
+  }
+
+  /**
+   * Group violations by rule ID
+   */
+  private groupByRule(violations: Violation[]): Map<string, Violation[]> {
+    const grouped = new Map<string, Violation[]>();
+    
+    for (const violation of violations) {
+      const existing = grouped.get(violation.ruleId) || [];
+      existing.push(violation);
+      grouped.set(violation.ruleId, existing);
+    }
+
+    return grouped;
+  }
+
+  /**
+   * Group violations by severity
+   */
+  private groupBySeverity(violations: Violation[]): Map<ViolationSeverity, Violation[]> {
+    const grouped = new Map<ViolationSeverity, Violation[]>();
+    
+    for (const violation of violations) {
+      const existing = grouped.get(violation.severity) || [];
+      existing.push(violation);
+      grouped.set(violation.severity, existing);
+    }
+
+    return grouped;
   }
 
   private generateSarifReport(violations: Violation[]): string {

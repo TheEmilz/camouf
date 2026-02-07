@@ -9,8 +9,12 @@ import { Violation, ViolationSeverity } from '../../types/core.types.js';
 import { DependencyGraph } from '../scanner/project-scanner.js';
 import { Logger } from '../logger.js';
 import { IRule, RuleContext, RuleResult } from './rule.interface.js';
+import { PluginLoader, createPluginLoader } from '../plugins/plugin-loader.js';
 
 // Import built-in rules
+import { AiHallucinatedImportsRule } from './builtin/ai-hallucinated-imports.rule.js';
+import { ContextDriftPatternsRule } from './builtin/context-drift-patterns.rule.js';
+import { PhantomTypeReferencesRule } from './builtin/phantom-type-references.rule.js';
 import { LayerDependenciesRule } from './builtin/layer-dependencies.rule.js';
 import { CircularDependenciesRule } from './builtin/circular-dependencies.rule.js';
 import { ContractMismatchRule } from './builtin/contract-mismatch.rule.js';
@@ -24,15 +28,51 @@ import { ResiliencePatternsRule } from './builtin/resilience-patterns.rule.js';
 import { DddBoundariesRule } from './builtin/ddd-boundaries.rule.js';
 import { FunctionSignatureMatchingRule } from './builtin/function-signature-matching.rule.js';
 import { HardcodedSecretsRule } from './builtin/hardcoded-secrets.rule.js';
+import { InconsistentCasingRule } from './builtin/inconsistent-casing.rule.js';
+import { OrphanedFunctionsRule } from './builtin/orphaned-functions.rule.js';
 
 export class RuleEngine {
   private config: CamoufConfig;
   private rules: Map<string, IRule> = new Map();
   private enabledRules: Set<string> = new Set();
+  private pluginLoader: PluginLoader | null = null;
 
   constructor(config: CamoufConfig) {
     this.config = config;
     this.initializeRules();
+  }
+
+  /**
+   * Initialize plugins and their rules
+   */
+  async initializePlugins(rootDir: string): Promise<void> {
+    const pluginConfigs = this.config.plugins;
+    if (!pluginConfigs || pluginConfigs.length === 0) {
+      return;
+    }
+
+    this.pluginLoader = createPluginLoader(rootDir);
+    await this.pluginLoader.loadPlugins(pluginConfigs);
+
+    // Register rules from plugins
+    const pluginRules = this.pluginLoader.getRules();
+    for (const rule of pluginRules) {
+      this.registerRule(rule);
+      // Enable plugin rules by default unless configured otherwise
+      const ruleConfig = this.config.rules?.plugin?.[rule.id];
+      if (this.isRuleEnabled(ruleConfig ?? 'warn')) {
+        this.enabledRules.add(rule.id);
+      }
+    }
+
+    Logger.info(`Loaded ${pluginRules.length} rules from plugins`);
+  }
+
+  /**
+   * Get the plugin loader
+   */
+  getPluginLoader(): PluginLoader | null {
+    return this.pluginLoader;
   }
 
   /**
@@ -41,6 +81,9 @@ export class RuleEngine {
   private initializeRules(): void {
     // Register built-in rules
     const builtinRules: IRule[] = [
+      new AiHallucinatedImportsRule(),
+      new ContextDriftPatternsRule(),
+      new PhantomTypeReferencesRule(),
       new LayerDependenciesRule(),
       new CircularDependenciesRule(),
       new ContractMismatchRule(),
@@ -54,6 +97,8 @@ export class RuleEngine {
       new DddBoundariesRule(),
       new FunctionSignatureMatchingRule(),
       new HardcodedSecretsRule(),
+      new InconsistentCasingRule(),
+      new OrphanedFunctionsRule(),
     ];
 
     for (const rule of builtinRules) {

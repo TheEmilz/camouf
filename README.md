@@ -5,21 +5,95 @@
 
 # Camouf
 
-**Real-time Architecture Monitoring CLI Tool**
+> **Camouf catches the mistakes AI coding assistants make** — broken contracts, phantom imports, signature drift, and architectural violations that traditional linters miss entirely.
 
-Camouf is a powerful, multi-language CLI tool for monitoring and enforcing software architecture in real-time. It detects architectural violations, anti-patterns, and provides actionable suggestions to maintain code quality.
+---
 
-## Features
+## The Problem: AI Agents Forget Context
 
-- **Real-time Monitoring**: Watch mode for continuous architecture validation
+Claude, Copilot, and Cursor are brilliant at generating code — but they work with **limited context windows**. When an AI generates frontend code without seeing your backend contracts, or modifies a file without remembering related files, things break in ways that **compile but fail at runtime**:
+
+```typescript
+// Backend contract (shared/api.ts)
+export function getUserById(id: string): Promise<User> { ... }
+export interface User { email: string; createdAt: Date; }
+
+// AI generates frontend code (components/Profile.tsx) — looks correct, compiles fine
+const user = await getUser(userId);        // ❌ Wrong function name
+console.log(user.userEmail);               // ❌ Wrong field name
+console.log(user.created_at);              // ❌ Wrong casing
+```
+
+**ESLint doesn't catch this.** TypeScript passes. Your tests might even pass. Then production breaks.
+
+---
+
+## How Camouf Solves It
+
+Camouf scans your codebase for the **specific patterns of errors** that AI assistants create:
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/TheEmilz/camouf/master/docs/images/problem-flow.svg" target="_blank">
+    <img src="docs/images/problem-flow.svg" alt="AI Context Loss Problem" width="100%" />
+  </a>
+</p>
+
+### What Camouf Catches
+
+| Error Type | Example | Traditional Tools |
+|------------|---------|-------------------|
+| **Function Name Drift** | `getUser()` instead of `getUserById()` | ❌ ESLint ignores it |
+| **Phantom Imports** | `import { validate } from './helpers'` (file doesn't exist) | ❌ TypeScript ignores at lint time |
+| **Field Name Mismatch** | `user.userEmail` instead of `user.email` | ❌ Compiles with `any` |
+| **Context Drift** | Same concept named `User`/`Customer`/`Account` in different files | ❌ No tool detects this |
+| **Orphaned Functions** | AI generates helpers that are never called | ❌ Tree-shaking hides it |
+| **Casing Inconsistency** | `getUserById` / `get_user_by_id` in same project | ❌ Style issue, not error |
+
+### Detection Example
+
+```
+Defined in shared/api.ts:15      Used in frontend/user.ts:42
+         getUserById(id)    ◄──────────    getUser(userId)
+                                  └── 75% similar — likely AI context loss
+```
+
+### Quick Fix
+
+```bash
+npx camouf fix-signatures --all    # Fix all mismatches automatically
+npx camouf fix --id sig-001        # Fix a specific mismatch
+```
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/TheEmilz/camouf/master/docs/images/camouf-workflow.svg" target="_blank">
+    <img src="docs/images/camouf-workflow.svg" alt="Camouf Workflow" width="100%" />
+  </a>
+</p>
+
+---
+
+## Traditional Linters vs Camouf
+
+| Aspect | ESLint / Prettier | Camouf |
+|--------|-------------------|--------|
+| **Focus** | Code style, syntax errors | Cross-file contract integrity |
+| **Scope** | Single file at a time | Entire codebase relationships |
+| **AI Errors** | Doesn't detect | Purpose-built for AI mistakes |
+| **Runtime Safety** | No guarantee | Catches compile-but-fail bugs |
+| **Architecture** | No awareness | Layer boundaries, DDD, dependencies |
+
+**Camouf is not a replacement for ESLint** — it catches what ESLint can't see.
+
+---
+
+## Why Camouf?
+
+- **AI-Native**: Built specifically for Claude, Copilot, and Cursor error patterns
+- **Cross-File Analysis**: Detects mismatches across your entire codebase
+- **Plugin Architecture**: Extend with custom rules for React, Next.js, NestJS, or any framework
 - **Multi-language Support**: TypeScript, JavaScript, Python, Java, Go, Rust
-- **Advanced Analysis**: Circular dependency detection, coupling metrics, hotspot identification
-- **13 Built-in Rules**: Comprehensive rule set for modern architectures
-- **AI Agent Safety**: Detects function/field name mismatches from AI context loss
-- **Security Scanning**: Detects hardcoded secrets, API keys, and credentials
-- **Multiple Report Formats**: HTML, JSON, Markdown, SARIF
-- **VS Code Integration**: Real-time Problems panel integration with custom tasks
-- **Highly Configurable**: JSON, YAML, or JavaScript configuration
+- **CI/CD Ready**: SARIF, JSON, JSOND outputs for GitHub Actions and AI agents
+- **VS Code Integration**: Real-time Problems panel with clickable fixes
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/TheEmilz/camouf/master/docs/images/architecture-overview.svg" target="_blank">
@@ -29,136 +103,156 @@ Camouf is a powerful, multi-language CLI tool for monitoring and enforcing softw
 
 ---
 
-## Function Signature Matching: Catch AI Agent Errors
+## Features
 
-AI coding agents like Claude Code and GitHub Copilot work with limited context windows.
-When generating frontend code without full visibility into backend contracts, they often
-use **similar but incorrect names** for functions and type fields.
+- **13+ Built-in Rules**: AI-specific and architecture validation rules
+- **Function/Field Matching**: Fuzzy matching to detect AI naming drift
+- **Circular Dependency Detection**: Find and break dependency cycles
+- **Real-time Watch Mode**: Continuous architecture monitoring
+- **Security Scanning**: Detects hardcoded secrets, API keys, credentials
+- **Multiple Report Formats**: HTML, JSON, JSOND, Markdown, SARIF
+- **VS Code Integration**: Problems panel with clickable quick-fixes
+- **Plugin System**: Extend for any framework (React, Next.js, NestJS...)
 
-These errors compile successfully but cause runtime failures.
+---
 
-### The Problem
+## Quick Start
 
-<p align="center">
-  <a href="https://raw.githubusercontent.com/TheEmilz/camouf/master/docs/images/problem-flow.svg" target="_blank">
-    <img src="docs/images/problem-flow.svg" alt="AI Context Loss Problem" width="100%" />
-  </a>
-</p>
-
-### How Camouf Solves It
-
-Camouf's `function-signature-matching` rule scans your shared contracts and uses
-fuzzy matching to detect when code uses names that are *close but not exact*:
-
-<p align="center">
-  <a href="https://raw.githubusercontent.com/TheEmilz/camouf/master/docs/images/camouf-workflow.svg" target="_blank">
-    <img src="docs/images/camouf-workflow.svg" alt="Camouf Workflow" width="100%" />
-  </a>
-</p>
-
-### Example Detection
-
-```
-Defined in shared/api.ts:15      Used in frontend/user.ts:42
-         getUserById(id)    ◄──────────    getUser(userId)
-                                  └── 75% similar, likely a typo
-```
-
-### Quick Fix Commands
+### Installation
 
 ```bash
-# Interactive mode: confirm each fix
-npx camouf fix-signatures --interactive
-
-# Fix all mismatches automatically
-npx camouf fix-signatures --all
-
-# Fix a specific mismatch by ID
-npx camouf fix --id sig-001
-
-# Preview what would be fixed
-npx camouf fix-signatures --all --dry-run
+npm install -g camouf
+# or
+npm install --save-dev camouf
 ```
 
-### Interactive HTML Report
-
-Run validation to generate a report with clickable quick-fix commands:
+### Initialize
 
 ```bash
-npx camouf report --format html --output camouf-report/
+camouf init
 ```
 
-The report shows:
+### Validate
 
-| Status | Type | Expected | Found | Quick Fix |
-|--------|------|----------|-------|-----------|
-| Error | Function | `getUserById` | `getUser` | `npx camouf fix --id sig-001` |
-| Error | Field | `email` | `userEmail` | `npx camouf fix --id sig-002` |
+```bash
+camouf validate
+```
 
-See [AI Agent Challenges](docs/ai-agent-challenges.md) for a comprehensive guide on this feature.
+### Watch Mode
+
+```bash
+camouf watch
+```
+
+---
+
+## Plugin System
+
+Extend Camouf for any framework. Plugins can add rules, analyzers, parsers, quick-fixes, and output formatters.
+
+```bash
+npm install --save-dev camouf-plugin-react
+```
+
+```json
+{
+  "plugins": ["camouf-plugin-react"],
+  "rules": {
+    "plugin": {
+      "missing-dependency-array": "error"
+    }
+  }
+}
+```
+
+See [Creating Plugins](docs/creating-plugins.md) for building your own.
+
+---
+
+## Official Plugins
+
+| Plugin | Description | Status |
+|--------|-------------|--------|
+| [`camouf-plugin-react`](https://www.npmjs.com/package/camouf-plugin-react) | React hooks dependency arrays, component naming, prop drilling, stale closures | ✅ Available |
+| `camouf-plugin-nextjs` | Next.js page structure, API routes, middleware | 🔜 Coming Soon |
+| `camouf-plugin-nestjs` | NestJS module boundaries, DI patterns | 🔜 Coming Soon |
+
+### camouf-plugin-react
+
+Catches AI-generated React mistakes:
+
+```bash
+npm install --save-dev camouf-plugin-react
+```
+
+**Rules included:**
+
+| Rule | Description |
+|------|-------------|
+| `missing-dependency-array` | Detects useEffect/useCallback with missing dependencies |
+| `inconsistent-component-naming` | Enforces PascalCase for React components |
+| `prop-drilling-detection` | Finds excessive prop passing through component trees |
+| `stale-closure-patterns` | Catches stale closures in hooks (common AI mistake) |
+
+---
+
+## MCP Server (AI Agent Integration)
+
+Camouf exposes an **MCP (Model Context Protocol) server** that allows AI agents like Claude, Cursor, and Copilot to validate their own code **before proposing it to you**.
+
+### Start MCP Server
+
+```bash
+npx camouf mcp
+```
+
+### Claude Desktop Configuration
+
+Add to your Claude Desktop config (`%APPDATA%\Claude\claude_desktop_config.json` on Windows, `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "camouf": {
+      "command": "npx",
+      "args": ["camouf", "mcp"],
+      "cwd": "/path/to/your/project"
+    }
+  }
+}
+```
+
+### Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `camouf_validate` | Validate code against architecture rules |
+| `camouf_analyze` | Analyze project structure and conventions |
+| `camouf_suggest_fix` | Get fix suggestions for violations |
+
+### Example: AI Self-Validation
+
+When Claude generates code, it can call `camouf_validate` to check for:
+
+- Hallucinated imports (modules that don't exist)
+- Contract mismatches (wrong function signatures)
+- Context drift (inconsistent naming)
+- Security issues (hardcoded secrets)
+
+This creates a **feedback loop** where AI catches its own mistakes before you see them.
 
 ---
 
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
-- [AI Agent Challenges](docs/ai-agent-challenges.md) — How Camouf catches AI-generated code errors
+- [Creating Plugins](docs/creating-plugins.md)
+- [AI Agent Challenges](docs/ai-agent-challenges.md)
 - [Configuring Rules](docs/configuring-rules.md)
 - [CI/CD Integration](docs/ci-cd-integration.md)
 - [Changelog](CHANGELOG.md)
 
-## Installation
-
-### Global Installation (Recommended)
-
-```bash
-npm install -g camouf
-```
-
-### Local Installation
-
-```bash
-npm install --save-dev camouf
-```
-
-### Using npx
-
-```bash
-npx camouf analyze
-```
-
-## Quick Start
-
-### 1. Initialize Configuration
-
-```bash
-camouf init
-```
-
-This creates a `camouf.config.json` file with sensible defaults and sets up VS Code integration.
-
-### 2. Run Analysis
-
-```bash
-camouf analyze
-```
-
-### 3. Watch Mode
-
-```bash
-camouf watch
-```
-
-### 4. VS Code Integration (Recommended)
-
-After running `camouf init`, you get automatic VS Code integration:
-
-1. Press `Ctrl+Shift+B` (or `Cmd+Shift+B` on Mac)
-2. Select **"camouf: Validate"** for one-time scan
-3. Select **"camouf: Watch"** for continuous monitoring
-4. Open the **Problems panel** (`Ctrl+Shift+M`) to see violations
-
-Violations will appear directly in VS Code with clickable file links!
+---
 
 ## Commands
 
@@ -359,13 +453,71 @@ Camouf supports multiple configuration formats:
 | `type-safety` | Detects unsafe type usage | `warn` |
 | `api-versioning` | Validates API versioning practices | `info` |
 
+### AI-Specific Rules
+
+These rules catch mistakes that AI coding assistants commonly make:
+
+| Rule | Description | Default |
+|------|-------------|---------|
+| `ai-hallucinated-imports` | Detects imports of non-existent files/modules | `error` |
+| `context-drift-patterns` | Finds same concepts with different names across files | `warn` |
+| `phantom-type-references` | Catches references to types that don't exist | `warn` |
+| `inconsistent-casing` | Detects mixing of camelCase/snake_case in the same codebase | `warn` |
+| `orphaned-functions` | Finds functions declared but never called anywhere | `warn` |
+
+> **See examples:** Check `test-fixtures/ai-errors/` in the repository for concrete examples of what each rule catches.
+
 ## Report Formats
 
 ### Text (Console)
 Real-time colored output with violation details.
 
 ### JSON
-Machine-readable format for CI/CD integration.
+Compact machine-readable format for CI/CD integration.
+
+### JSOND (Recommended for AI Agents)
+**JSON with Descriptions** — A structured format optimized for AI agent consumption with rich context and actionable information.
+
+```bash
+npx camouf validate --format jsond
+```
+
+JSOND includes:
+- Detailed descriptions for every field
+- Violations grouped by file, rule, and severity
+- AI-specific action items and priorities
+- Ready-to-run fix commands
+- Workflow instructions for automated remediation
+
+Example output:
+```json
+{
+  "$description": "Camouf Architecture Violations Report - JSOND format optimized for AI agents",
+  "summary": {
+    "total_violations": 3,
+    "by_severity": {
+      "errors": {
+        "count": 2,
+        "description": "Critical violations that must be fixed..."
+      }
+    }
+  },
+  "action_items": [
+    {
+      "priority": "critical",
+      "action": "Remove hardcoded secrets",
+      "quick_fix": "Move secrets to environment variables"
+    }
+  ],
+  "ai_instructions": {
+    "recommended_workflow": [
+      "1. Review the summary to understand the scope",
+      "2. Prioritize errors over warnings",
+      "3. Use 'suggestion' field for fixes"
+    ]
+  }
+}
+```
 
 ### HTML
 Interactive visualization with dependency graphs.
@@ -489,28 +641,44 @@ Generates integration files for all supported agents (Claude Code + Codex).
 
 ### Machine-Readable Output
 
-For agent consumption, use JSON output with CI mode:
+For AI agent consumption, use **JSOND format** (recommended):
 
 ```bash
-npx camouf validate --format json --ci
+npx camouf validate --format jsond --ci
 ```
 
-Output:
+JSOND provides rich context and actionable instructions optimized for AI assistants:
 
 ```json
 {
-  "summary": { "total": 2, "errors": 1, "warnings": 1, "info": 0 },
-  "violations": [
-    {
-      "ruleId": "hardcoded-secrets",
-      "severity": "error",
-      "message": "Potential hardcoded API key found",
-      "file": "src/config.ts",
-      "line": 15,
-      "suggestion": "Move to environment variable"
+  "$description": "Camouf Architecture Violations Report",
+  "summary": {
+    "total_violations": 2,
+    "by_severity": {
+      "errors": { "count": 1, "description": "Critical violations..." }
     }
-  ]
+  },
+  "action_items": [
+    {
+      "priority": "critical",
+      "action": "Remove hardcoded secrets",
+      "quick_fix": "npx camouf fix --id sec-001"
+    }
+  ],
+  "ai_instructions": {
+    "recommended_workflow": [
+      "1. Review summary",
+      "2. Prioritize errors",
+      "3. Apply quick fixes"
+    ]
+  }
 }
+```
+
+For simpler JSON output:
+
+```bash
+npx camouf validate --format json --ci
 ```
 
 ## CI/CD Integration
@@ -593,10 +761,10 @@ camouf analyze --visualize -f dot -o ./reports
 
 ### Custom Rules
 
-Create custom rules by implementing the `IRule` interface:
+For project-specific rules, implement the `IRule` interface:
 
 ```typescript
-import { IRule, RuleContext, RuleViolation } from 'camouf';
+import { IRule, RuleContext, RuleResult } from 'camouf';
 
 export class MyCustomRule implements IRule {
   readonly id = 'my-custom-rule';
@@ -605,9 +773,9 @@ export class MyCustomRule implements IRule {
   readonly severity = 'warning';
   readonly tags = ['custom'];
 
-  validate(context: RuleContext): RuleViolation[] {
+  async check(context: RuleContext): Promise<RuleResult> {
     // Your rule logic here
-    return [];
+    return { violations: [] };
   }
 }
 ```
@@ -623,6 +791,8 @@ Register custom rules in configuration:
   }
 }
 ```
+
+For framework-specific rules and publishing plugins, see [Creating Plugins](docs/creating-plugins.md).
 
 ## Docker
 

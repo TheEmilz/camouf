@@ -7,7 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.1] - 2026-02-06
+## [0.5.0] - 2025-02-07
+
+### Added
+- **5 New AI-Specific Rules** - Purpose-built to catch AI coding assistant mistakes:
+  - `ai-hallucinated-imports` - Detects imports of non-existent files/modules (AI "hallucinates" paths)
+  - `context-drift-patterns` - Finds when the same concept gets different names across files (User vs Customer vs Account)
+  - `phantom-type-references` - Catches references to types that don't exist or were renamed
+  - `inconsistent-casing` - Detects mixing of camelCase/snake_case in the same codebase
+  - `orphaned-functions` - Finds functions that are declared but never called anywhere
+
+- **MCP Server Integration** - AI agents can now call Camouf directly:
+  - `camouf mcp` command starts the Model Context Protocol server
+  - Tools: `camouf_validate`, `camouf_analyze`, `camouf_suggest_fix`
+  - Compatible with Claude Desktop, Cursor, and other MCP-enabled agents
+  - See README for configuration examples
+
+- **Official Plugin: camouf-plugin-react** - Published to npm:
+  - 4 React-specific rules for AI-generated code
+  - `missing-dependency-array` - useEffect/useMemo/useCallback dependency issues
+  - `inconsistent-component-naming` - PascalCase enforcement for components
+  - `prop-drilling-detection` - Excessive prop passing through component trees
+  - `stale-closure-patterns` - Stale closures in hooks
+
+- **Test Fixtures** - Example files in `test-fixtures/ai-errors/` demonstrating all AI rules
+
+### Changed
+- README completely rewritten with AI-first narrative
+- Camouf now positioned as "Architecture Guardrails for AI-Generated Code"
+- Total built-in rules: 18 (13 architecture + 5 AI-specific)
+
+## [0.4.1] - 2025-02-06
 
 ### Changed
 - README diagrams are now clickable for full-size view

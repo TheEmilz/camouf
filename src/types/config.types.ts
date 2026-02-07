@@ -4,6 +4,8 @@
  * Defines all configuration interfaces for Camouf.
  */
 
+import { PluginConfig } from './plugin.types.js';
+
 export interface CamoufConfig {
   /** Project name */
   name?: string;
@@ -22,6 +24,9 @@ export interface CamoufConfig {
 
   /** Rules configuration */
   rules: RulesConfig;
+
+  /** Plugins to load */
+  plugins?: (string | PluginConfig)[];
 
   /** Parser configurations */
   parsers?: ParsersConfig;
@@ -84,6 +89,9 @@ export interface RulesConfig {
   /** Built-in rules configuration */
   builtin: BuiltinRulesConfig;
   
+  /** Plugin rules configuration (keyed by rule ID) */
+  plugin?: Record<string, RuleLevel>;
+  
   /** Custom rules */
   custom?: CustomRuleConfig[];
   
@@ -92,6 +100,24 @@ export interface RulesConfig {
 }
 
 export interface BuiltinRulesConfig {
+  /** AI hallucinated imports detection */
+  'ai-hallucinated-imports'?: RuleLevel;
+  
+  /** Context drift patterns detection */
+  'context-drift-patterns'?: RuleLevel;
+  
+  /** Phantom type references detection */
+  'phantom-type-references'?: RuleLevel;
+  
+  /** Inconsistent casing detection */
+  'inconsistent-casing'?: RuleLevel;
+  
+  /** Orphaned functions detection */
+  'orphaned-functions'?: RuleLevel;
+  
+  /** Contract mismatch detection */
+  'contract-mismatch'?: RuleLevel;
+  
   /** Layer dependency violations */
   'layer-dependencies'?: RuleLevel;
   
@@ -209,7 +235,7 @@ export interface PatternsConfig {
 
 export interface OutputConfig {
   /** Report format */
-  format?: 'text' | 'json' | 'sarif' | 'html';
+  format?: 'text' | 'json' | 'jsond' | 'sarif' | 'html';
   
   /** Output directory */
   directory?: string;
