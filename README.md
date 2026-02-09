@@ -146,6 +146,110 @@ camouf watch
 
 ---
 
+## CLI Reference
+
+Running `npx camouf` or `npx camouf help` displays the full interactive help:
+
+```
+  ██████╗ █████╗ ███╗   ███╗ ██████╗ ██╗   ██╗███████╗
+ ██╔════╝██╔══██╗████╗ ████║██╔═══██╗██║   ██║██╔════╝
+ ██║     ███████║██╔████╔██║██║   ██║██║   ██║█████╗
+ ██║     ██╔══██║██║╚██╔╝██║██║   ██║██║   ██║██╔══╝
+ ╚██████╗██║  ██║██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║
+  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝    v0.5.0
+
+  Architecture guardrails for AI-generated code
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  QUICK START                                                │
+  │                                                             │
+  │  $ npx camouf init              # Setup config              │
+  │  $ npx camouf validate          # One-time check            │
+  │  $ npx camouf watch             # Real-time monitoring      │
+  └─────────────────────────────────────────────────────────────┘
+
+  COMMANDS
+
+  Setup & Config:
+    init [options]            Initialize configuration in the current project
+                              --template <t>  Use preset (monorepo, fullstack)
+                              --agent <type>  Generate CLAUDE.md / AGENTS.md
+
+  Validation & Analysis:
+    validate [options]        One-time architecture validation
+                              --rules <r>     Run specific rules (comma-sep)
+                              --format <f>    Output: text, json, sarif, vscode
+                              --fix           Auto-fix where possible
+                              --ci            CI/agent mode (no spinners)
+    watch [options]           Real-time file monitoring with live validation
+                              --format vscode VS Code Problems panel integration
+                              --rules <r>     Watch specific rules only
+    analyze [options]         Deep architecture & dependency analysis
+                              --metrics       Include code metrics
+                              --coupling      Analyze module coupling
+                              --format <f>    Output: html, json, dot
+
+  Fixing & Refactoring:
+    fix [options]             Fix signature mismatches & fixable violations
+                              --interactive   Review and confirm each fix
+                              --all           Apply all fixes automatically
+                              --dry-run       Preview changes without applying
+                              --id <id>       Fix specific mismatch by ID
+                              --file <path>   Fix all in a specific file
+                              --type <type>   Fix by type (function-name, etc.)
+    fix-signatures [options]  Alias: fix function signature mismatches
+
+  Reporting:
+    report [options]          Generate comprehensive architecture reports
+                              --format <f>    html, pdf, json, markdown
+                              --include-code  Include code snippets
+                              --include-graphs Include dependency graphs
+
+  AI Agent Integration:
+    mcp [options]             Start MCP server for Cursor, Claude, Copilot
+                              --stdio         Use stdio transport (default)
+
+  GLOBAL OPTIONS
+
+    -c, --config <path>       Path to configuration file
+    -v, --version             Display current version
+    --verbose                 Enable verbose output
+    --silent                  Suppress all output except errors
+    --no-color                Disable colored output
+
+  EXAMPLES
+
+    $ npx camouf validate --format json          # JSON output for scripts
+    $ npx camouf validate --rules function-signature-matching
+    $ npx camouf fix --interactive               # Review fixes one by one
+    $ npx camouf fix --all --dry-run             # Preview all fixes
+    $ npx camouf watch --format vscode           # VS Code integration
+    $ npx camouf report --format html            # HTML architecture report
+    $ npx camouf init --agent claude             # Generate CLAUDE.md
+    $ npx camouf mcp --stdio                     # Start MCP server
+
+  AVAILABLE RULES
+
+    AI Safety:          ai-hallucinated-imports, inconsistent-casing,
+                        orphaned-functions, phantom-type-references,
+                        context-drift-patterns
+    Architecture:       layer-dependencies, circular-dependencies,
+                        function-signature-matching, contract-mismatch
+    Code Quality:       type-safety, performance-antipatterns,
+                        data-flow-integrity, hardcoded-secrets
+    Advanced:           ddd-boundaries, distributed-transactions,
+                        api-versioning, security-context, resilience-patterns
+
+  DOCS & LINKS
+
+    Documentation:      https://github.com/TheEmilz/camouf#readme
+    Report Issues:      https://github.com/TheEmilz/camouf/issues
+```
+
+> **Tip:** Run `npx camouf help <command>` for detailed help on any specific command.
+
+---
+
 ## Plugin System
 
 Extend Camouf for any framework. Plugins can add rules, analyzers, parsers, quick-fixes, and output formatters.
@@ -256,105 +360,11 @@ This creates a **feedback loop** where AI catches its own mistakes before you se
 
 ## Commands
 
-### `camouf init`
+> See the full [CLI Reference](#cli-reference) above for all commands, options, and examples.
+> 
+> Run `npx camouf help` to see the same reference in your terminal.
 
-Initialize Camouf configuration in your project.
-
-```bash
-camouf init [options]
-
-Options:
-  -f, --force           Overwrite existing configuration
-  -t, --template        Use a predefined template (clean-architecture, microservices, monolith)
-  --agent <type>        Generate agent integration files (claude, codex, all)
-```
-
-### `camouf analyze`
-
-Analyze project architecture and generate reports.
-
-```bash
-camouf analyze [options]
-
-Options:
-  -c, --config <path>   Path to configuration file
-  -o, --output <path>   Output directory for reports
-  -f, --format <type>   Report format (text, json, html, sarif)
-  --visualize           Generate architecture visualization
-  --rules <rules>       Comma-separated list of rules to run
-```
-
-### `camouf watch`
-
-Start real-time architecture monitoring.
-
-```bash
-camouf watch [options]
-
-Options:
-  -c, --config <path>   Path to configuration file
-  --debounce <ms>       Debounce time in milliseconds (default: 300)
-  --format <format>     Output format: text (default), vscode
-  --ci                  CI/agent mode: no spinners, no colors
-```
-
-### `camouf validate`
-
-Validate architecture against configured rules (CI/CD friendly).
-
-```bash
-camouf validate [options]
-
-Options:
-  -c, --config <path>   Path to configuration file
-  --format <format>     Output format: text (default), json, sarif, vscode
-  --strict              Fail on warnings
-  --bail                Exit on first error
-  --ci                  CI/agent mode: no spinners, no colors
-```
-
-### `camouf report`
-
-Generate architecture report from existing analysis.
-
-```bash
-camouf report [options]
-
-Options:
-  -i, --input <path>    Path to analysis JSON
-  -o, --output <path>   Output path for report
-  -f, --format <type>   Report format (html, json, markdown)
-```
-
-### `camouf fix`
-
-Apply a single quick-fix by ID.
-
-```bash
-camouf fix [options]
-
-Options:
-  --id <id>            Quick-fix ID (e.g., sig-001)
-  -c, --config <path>  Path to configuration file
-  --dry-run            Preview changes without applying
-```
-
-### `camouf fix-signatures`
-
-Fix all function/field signature mismatches.
-
-```bash
-camouf fix-signatures [options]
-
-Options:
-  --all                 Fix all mismatches automatically
-  --interactive         Confirm each fix interactively
-  --file <path>         Fix only mismatches in specific file
-  --type <type>         Fix only function or field mismatches
-  -c, --config <path>   Path to configuration file
-  --dry-run             Preview changes without applying
-  --ci                  CI/agent mode: no prompts, use --all for auto-fix
-```
+<!-- Detailed command docs removed — see CLI Reference section above -->
 
 ## Configuration
 
