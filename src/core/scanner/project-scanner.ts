@@ -31,17 +31,38 @@ export interface DependencyGraph {
   predecessors(id: string): string[] | undefined;
 }
 
+export interface ScanProgress {
+  /** Current file index (1-based) */
+  current: number;
+  /** Total number of files to scan */
+  total: number;
+  /** Relative path of the file being processed */
+  file: string;
+  /** Phase of scanning */
+  phase: 'discovering' | 'parsing' | 'building-graph';
+}
+
+export type ScanProgressCallback = (progress: ScanProgress) => void;
+
 export class ProjectScanner {
   private config: CamoufConfig;
   private parserRegistry: ParserRegistry;
   private graph: DependencyGraph;
   private fileCache: Map<string, ParsedFile> = new Map();
   private fileContents: Map<string, string> = new Map();  // Store file contents for rules
+  private progressCallback?: ScanProgressCallback;
 
   constructor(config: CamoufConfig) {
     this.config = config;
     this.parserRegistry = new ParserRegistry(config);
     this.graph = new Graph({ directed: true, compound: false, multigraph: false }) as DependencyGraph;
+  }
+
+  /**
+   * Set a callback to receive scan progress updates
+   */
+  onProgress(callback: ScanProgressCallback): void {
+    this.progressCallback = callback;
   }
 
   /**
@@ -51,6 +72,7 @@ export class ProjectScanner {
     Logger.debug('Starting project scan...');
 
     // Find all files matching the patterns
+    this.progressCallback?.({ current: 0, total: 0, file: '', phase: 'discovering' });
     const files = await this.findFiles();
     Logger.debug(`Found ${files.length} files to analyze`);
 
@@ -58,6 +80,7 @@ export class ProjectScanner {
     const parsedFiles = await this.parseFiles(files);
 
     // Build dependency graph
+    this.progressCallback?.({ current: 0, total: parsedFiles.length, file: '', phase: 'building-graph' });
     this.buildGraph(parsedFiles);
 
     Logger.debug(`Graph built with ${this.graph.nodeCount()} nodes and ${this.graph.edgeCount()} edges`);
@@ -162,6 +185,8 @@ export class ProjectScanner {
    */
   private async parseFiles(filePaths: string[]): Promise<ParsedFile[]> {
     const parsedFiles: ParsedFile[] = [];
+    const total = filePaths.length;
+    let processed = 0;
 
     // Process files in batches for performance
     const batchSize = this.config.advanced?.maxWorkers || 4;
@@ -171,6 +196,17 @@ export class ProjectScanner {
       const batchResults = await Promise.all(
         batch.map(async (filePath) => {
           try {
+            const relativePath = path.relative(this.config.root, filePath);
+
+            // Emit progress before parsing
+            processed++;
+            this.progressCallback?.({
+              current: processed,
+              total,
+              file: relativePath,
+              phase: 'parsing',
+            });
+
             const projectFile = await this.createProjectFile(filePath);
             if (!projectFile) {
               return null;
@@ -189,7 +225,6 @@ export class ProjectScanner {
             this.fileCache.set(filePath, parsedFile);
             
             // Store content with relative path for rules
-            const relativePath = path.relative(this.config.root, filePath);
             this.fileContents.set(relativePath, content);
             
             return parsedFile;

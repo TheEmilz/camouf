@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-02-09
+
+### Added
+- **Scan Progress Reporting** - Real-time progress feedback during project scanning for large codebases
+  - Spinner now shows file-by-file progress: `Scanning [127/1843] (6%) src/core/rules/...`
+  - Three-phase feedback: discovering files → parsing (with counter) → building dependency graph
+  - Long file paths automatically truncated for clean terminal output
+  - CI mode emits progress via debug logs (no ANSI escape codes)
+  - Applied to `validate`, `analyze`, and `watch` commands
+
 ## [0.6.0] - 2026-02-09
 
 ### Added

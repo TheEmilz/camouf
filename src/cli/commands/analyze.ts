@@ -40,6 +40,19 @@ export const analyzeCommand = new Command('analyze')
       const analyzer = new DependencyAnalyzer(config);
       const visualizer = new ArchitectureVisualizer(config);
 
+      // Set up scan progress reporting
+      scanner.onProgress(({ current, total, file, phase }) => {
+        if (phase === 'discovering') {
+          spinner.text = 'Discovering files...';
+        } else if (phase === 'parsing') {
+          const pct = Math.round((current / total) * 100);
+          const shortFile = file.length > 50 ? '...' + file.slice(-47) : file;
+          spinner.text = `Scanning [${current}/${total}] (${pct}%) ${shortFile}`;
+        } else if (phase === 'building-graph') {
+          spinner.text = 'Building dependency graph...';
+        }
+      });
+
       // Scan project
       const graph = await scanner.scan();
       spinner.succeed(`Scanned ${graph.nodeCount()} files`);

@@ -56,6 +56,19 @@ export const watchCommand = new Command('watch')
         ruleEngine.filterRules(enabledRules);
       }
 
+      // Set up scan progress reporting
+      scanner.onProgress(({ current, total, file, phase }) => {
+        if (phase === 'discovering') {
+          if (spinner) spinner.text = 'Discovering files...';
+        } else if (phase === 'parsing') {
+          const pct = Math.round((current / total) * 100);
+          const shortFile = file.length > 50 ? '...' + file.slice(-47) : file;
+          if (spinner) spinner.text = `Scanning [${current}/${total}] (${pct}%) ${shortFile}`;
+        } else if (phase === 'building-graph') {
+          if (spinner) spinner.text = 'Building dependency graph...';
+        }
+      });
+
       // Initial scan
       if (options.initial !== false) {
         if (spinner) spinner.text = 'Performing initial scan...';

@@ -49,6 +49,22 @@ export const validateCommand = new Command('validate')
         ruleEngine.filterRules(enabledRules);
       }
 
+      // Set up scan progress reporting
+      scanner.onProgress(({ current, total, file, phase }) => {
+        if (phase === 'discovering') {
+          if (spinner) spinner.text = 'Discovering files...';
+          else if (isCIMode) Logger.debug('Discovering files...');
+        } else if (phase === 'parsing') {
+          const pct = Math.round((current / total) * 100);
+          const shortFile = file.length > 50 ? '...' + file.slice(-47) : file;
+          if (spinner) spinner.text = `Scanning [${current}/${total}] (${pct}%) ${shortFile}`;
+          else if (isCIMode) Logger.debug(`Scanning [${current}/${total}] ${file}`);
+        } else if (phase === 'building-graph') {
+          if (spinner) spinner.text = 'Building dependency graph...';
+          else if (isCIMode) Logger.debug('Building dependency graph...');
+        }
+      });
+
       // Scan project
       const graph = await scanner.scan();
       if (spinner) spinner.succeed(`Scanned ${graph.nodeCount()} files`);
