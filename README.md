@@ -1,5 +1,6 @@
 
 [![npm version](https://img.shields.io/npm/v/camouf.svg)](https://www.npmjs.com/package/camouf)
+[![npm downloads](https://img.shields.io/npm/dt/camouf.svg)](https://www.npmjs.com/package/camouf)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml/badge.svg)](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml)
 
