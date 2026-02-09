@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-09
+
+### Added
+- **Redesigned CLI Help** - Rich interactive help with ASCII banner, grouped commands, inline options, examples, available rules list, and docs links
+- **CLI Reference in README** - Full CLI output shown in README for instant engagement
+- **Test Fixtures: client/server/shared structure** - Realistic cross-boundary test files for `function-signature-matching` rule
+  - `shared/user.types.ts` and `shared/payment.types.ts` with canonical APIs
+  - `client/user-service.ts` and `client/payment-handler.ts` with AI-drifted function calls
+  - `server/user-controller.ts` with mismatched server implementations
+
+### Fixed
+- **`fix-signatures` now works correctly** - Was returning "No mismatches found" because test-fixtures had empty `client`/`server` directories in config
+- **Unknown command handling** - Shows helpful error message instead of crash
+- **`--help` and no-args behavior** - Shows custom help instead of default Commander output
+
+### Changed
+- Updated `test-fixtures/camouf.config.json` with proper layer definitions and 10 enabled rules
+- Removed duplicated Commands section from README (replaced with CLI Reference link)
+
 ## [0.5.0] - 2025-02-07
 
 ### Added
