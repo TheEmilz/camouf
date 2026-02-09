@@ -80,7 +80,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^10.0.1",
     "@types/graphlib": "^2.1.12",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^25.2.0",
