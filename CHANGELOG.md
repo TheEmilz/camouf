@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-09
+
+### Fixed
+- **Dramatically reduced false positives in `function-signature-matching`** — The rule was confusing field access on callback parameters (`node.data` from ReactFlow, `event.metaKey` from DOM, `item.dataKey` from Recharts, etc.) with internal API type field mismatches
+
+### Added
+- **Library-Aware Auto-Detection** — File imports are analyzed to detect which external libraries are in use (ReactFlow, Recharts, Express, Redux, Mongoose, Next.js, etc.) and automatically suppress their known object/field patterns
+  - 15+ libraries with curated ignore patterns out of the box
+  - New `LIBRARY_IGNORE_PATTERNS` registry inside the rule
+- **`ignorePatterns` config option** — Simplified configuration to exclude false positives:
+  ```json
+  {
+    "ignorePatterns": {
+      "variables": ["node", "event", "item", "payload"],
+      "properties": ["dataKey", "metaKey", "payload"]
+    }
+  }
+  ```
+- **Massively expanded built-in allowlists** — 150+ common object variable names (callback params like `item`, `entry`, `elem`, `val`, `acc`; framework objects like `store`, `dispatch`, `chart`, `canvas`) and 150+ common field names (DOM events, React props, chart properties, HTTP fields)
+
+### Changed
+- `isBuiltinObjectAccess` now uses `Set` instead of arrays for O(1) lookups (performance improvement on large codebases)
+- External import detection now also tracks library names for context-aware analysis
+
 ## [0.6.2] - 2026-02-09
 
 ### Fixed

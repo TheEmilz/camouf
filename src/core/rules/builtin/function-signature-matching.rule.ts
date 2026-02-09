@@ -52,6 +52,15 @@ interface FunctionSignatureConfig extends RuleConfig {
    * These are typically variables from external libraries (e.g. "node" from ReactFlow).
    */
   externalLibraryObjects?: string[];
+  /**
+   * Simplified ignore patterns config (alternative to ignoreFieldPatterns).
+   * variables: object names to always skip (e.g. ["node", "event", "item"])
+   * properties: field names to always skip on any object (e.g. ["dataKey", "metaKey"])
+   */
+  ignorePatterns?: {
+    variables?: string[];
+    properties?: string[];
+  };
 }
 
 // ============================================================================
@@ -150,6 +159,7 @@ export class FunctionSignatureMatchingRule implements IRule {
     ignoreFieldPatterns: [],
     ignoreExternalImports: true,
     externalLibraryObjects: [],
+    ignorePatterns: { variables: [], properties: [] },
   };
 
   // Cache for parsed exports
@@ -159,6 +169,42 @@ export class FunctionSignatureMatchingRule implements IRule {
   private mismatchCounter = 0;
   // Track which variable names are imported from external packages (per file)
   private externalImportVars: Set<string> = new Set();
+  // Track which external libraries are imported in the current file (per file)
+  private detectedLibraries: Set<string> = new Set();
+
+  // =========================================================================
+  // Known library patterns — fields/objects to auto-ignore per library
+  // =========================================================================
+  private static readonly LIBRARY_IGNORE_PATTERNS: Record<string, { objects: string[]; fields: string[] }> = {
+    // React Flow / XYFlow
+    'reactflow': { objects: ['node', 'edge', 'connection', 'viewport'], fields: ['data', 'sourceHandle', 'targetHandle', 'markerEnd', 'markerStart', 'interactionWidth', 'zIndex', 'parentNode', 'expandParent', 'extent', 'positionAbsolute', 'dragging'] },
+    '@xyflow/react': { objects: ['node', 'edge', 'connection', 'viewport'], fields: ['data', 'sourceHandle', 'targetHandle', 'markerEnd', 'markerStart', 'interactionWidth', 'zIndex', 'parentNode', 'expandParent', 'extent', 'positionAbsolute', 'dragging'] },
+    // Recharts
+    'recharts': { objects: ['payload', 'entry', 'item', 'tick', 'activePayload'], fields: ['dataKey', 'payload', 'fill', 'stroke', 'strokeWidth', 'activeDot', 'dot', 'legendType', 'tickFormatter', 'tickLine', 'axisLine', 'cartesianGrid'] },
+    // Chart.js
+    'chart.js': { objects: ['dataset', 'tooltip', 'chart', 'scale'], fields: ['datasetIndex', 'dataIndex', 'parsed', 'raw', 'formattedValue'] },
+    // D3
+    'd3': { objects: ['datum', 'node', 'link', 'simulation'], fields: ['datum', 'fx', 'fy', 'vx', 'vy', 'cx', 'cy'] },
+    // Express
+    'express': { objects: ['req', 'res', 'next', 'app', 'router'], fields: ['params', 'query', 'body', 'headers', 'cookies', 'session', 'locals', 'baseUrl', 'originalUrl', 'hostname', 'ip', 'method', 'path', 'protocol', 'secure', 'xhr', 'statusCode'] },
+    // Fastify
+    'fastify': { objects: ['request', 'reply', 'fastify'], fields: ['params', 'query', 'body', 'headers', 'raw', 'server'] },
+    // Socket.io
+    'socket.io': { objects: ['socket', 'io'], fields: ['handshake', 'rooms', 'nsp', 'connected', 'disconnected'] },
+    // Mongoose / MongoDB
+    'mongoose': { objects: ['doc', 'model', 'schema', 'query'], fields: ['_id', 'isModified', 'isNew', 'toObject', 'toJSON', 'markModified', 'populate'] },
+    // Sequelize
+    'sequelize': { objects: ['instance', 'model', 'sequelize'], fields: ['dataValues', 'isNewRecord', 'changed'] },
+    // Prisma
+    '@prisma/client': { objects: ['prisma'], fields: ['findUnique', 'findMany', 'create', 'update', 'upsert', 'deleteMany'] },
+    // Next.js
+    'next': { objects: ['router', 'page'], fields: ['pathname', 'query', 'asPath', 'basePath', 'locale', 'isReady', 'isFallback'] },
+    'next/router': { objects: ['router'], fields: ['pathname', 'query', 'asPath', 'basePath', 'locale', 'isReady', 'isFallback'] },
+    // Zustand / Redux
+    'zustand': { objects: ['store', 'state'], fields: ['getState', 'setState', 'subscribe', 'destroy'] },
+    '@reduxjs/toolkit': { objects: ['store', 'state', 'action', 'slice'], fields: ['payload', 'type', 'meta', 'error', 'dispatch', 'getState'] },
+    'redux': { objects: ['store', 'state', 'action'], fields: ['payload', 'type', 'meta', 'error', 'dispatch', 'getState'] },
+  };
 
   configure(options: Partial<FunctionSignatureConfig>): void {
     this.config = { ...this.config, ...options };
@@ -489,11 +535,10 @@ export class FunctionSignatureMatchingRule implements IRule {
   private checkFileForMismatches(filePath: string, content: string, violations: Violation[]): void {
     const lines = content.split('\n');
 
-    // Extract external imports for this file (used to skip external lib field access)
-    if (this.config.ignoreExternalImports) {
-      this.externalImportVars.clear();
-      this.extractExternalImportVars(lines);
-    }
+    // Extract external imports and detect libraries for this file
+    this.externalImportVars.clear();
+    this.detectedLibraries.clear();
+    this.extractExternalImportVars(lines);
 
     // Check function calls
     this.checkFunctionCalls(filePath, lines, violations);
@@ -673,7 +718,9 @@ export class FunctionSignatureMatchingRule implements IRule {
       }
     }
 
-    // Build flat list of field names for matching (used implicitly via typeFieldMap)
+    // Build the combined ignore sets from library detection + config
+    const ignoredObjects = this.buildIgnoredObjects();
+    const ignoredFields = this.buildIgnoredFields();
 
     // Check for field access patterns that might not match
     for (let i = 0; i < lines.length; i++) {
@@ -694,14 +741,19 @@ export class FunctionSignatureMatchingRule implements IRule {
         // Skip common JS builtins like console.log, Promise.resolve, etc.
         if (this.isBuiltinObjectAccess(objectVar, fieldName)) continue;
 
-        // Skip if matching user-defined ignore patterns
+        // Skip if matching user-defined ignore patterns (wildcard support)
         if (this.matchesIgnorePattern(objectVar, fieldName)) continue;
 
         // Skip if object comes from an external import
         if (this.config.ignoreExternalImports && this.externalImportVars.has(objectVar)) continue;
 
-        // Skip if object is in the user-defined externalLibraryObjects list
-        if (this.config.externalLibraryObjects?.includes(objectVar)) continue;
+        // Skip if object is in the combined ignored objects set
+        // (includes: config.externalLibraryObjects, config.ignorePatterns.variables, library-detected objects)
+        if (ignoredObjects.has(objectVar)) continue;
+
+        // Skip if field is in the combined ignored fields set
+        // (includes: config.ignorePatterns.properties, library-detected fields)
+        if (ignoredFields.has(fieldName)) continue;
 
         // Find best matching field using enhanced similarity
         const similar = this.findSimilarFields(fieldName, typeFieldMap);
@@ -736,53 +788,123 @@ export class FunctionSignatureMatchingRule implements IRule {
     }
   }
 
+  /**
+   * Build the set of object variable names to ignore, combining:
+   * - config.externalLibraryObjects
+   * - config.ignorePatterns.variables
+   * - Auto-detected library patterns based on file imports
+   */
+  private buildIgnoredObjects(): Set<string> {
+    const ignored = new Set<string>();
+
+    // User config: externalLibraryObjects
+    if (this.config.externalLibraryObjects) {
+      for (const obj of this.config.externalLibraryObjects) ignored.add(obj);
+    }
+
+    // User config: ignorePatterns.variables
+    if (this.config.ignorePatterns?.variables) {
+      for (const v of this.config.ignorePatterns.variables) ignored.add(v);
+    }
+
+    // Library-aware auto-detection
+    for (const lib of this.detectedLibraries) {
+      const patterns = FunctionSignatureMatchingRule.LIBRARY_IGNORE_PATTERNS[lib];
+      if (patterns) {
+        for (const obj of patterns.objects) ignored.add(obj);
+      }
+    }
+
+    return ignored;
+  }
+
+  /**
+   * Build the set of field/property names to ignore, combining:
+   * - config.ignorePatterns.properties
+   * - Auto-detected library patterns based on file imports
+   */
+  private buildIgnoredFields(): Set<string> {
+    const ignored = new Set<string>();
+
+    // User config: ignorePatterns.properties
+    if (this.config.ignorePatterns?.properties) {
+      for (const p of this.config.ignorePatterns.properties) ignored.add(p);
+    }
+
+    // Library-aware auto-detection
+    for (const lib of this.detectedLibraries) {
+      const patterns = FunctionSignatureMatchingRule.LIBRARY_IGNORE_PATTERNS[lib];
+      if (patterns) {
+        for (const field of patterns.fields) ignored.add(field);
+      }
+    }
+
+    return ignored;
+  }
+
   // ==========================================================================
   // External Import & Ignore Pattern Helpers
   // ==========================================================================
 
   /**
-   * Extract variable names that are imported from external (non-relative) packages.
-   * These are objects from node_modules (e.g. ReactFlow, Express, Recharts).
+   * Extract variable names imported from external packages AND detect which
+   * known libraries are imported (for library-aware pattern suppression).
    */
   private extractExternalImportVars(lines: string[]): void {
     for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed.startsWith('import')) continue;
 
-      // Only flag non-relative imports (external packages)
-      // Skip: import from './...' or '../...'
-      const fromMatch = trimmed.match(/from\s+['"]([^'"]+)['"]/);
-      if (!fromMatch) continue;
-      const importPath = fromMatch[1];
-      if (importPath.startsWith('.') || importPath.startsWith('/')) continue;
+      // Handle import statements
+      if (trimmed.startsWith('import')) {
+        const fromMatch = trimmed.match(/from\s+['"]([^'"]+)['"]/);
+        if (!fromMatch) continue;
+        const importPath = fromMatch[1];
+        if (importPath.startsWith('.') || importPath.startsWith('/')) continue;
 
-      // Named imports: import { a, b as c } from 'pkg'
-      const namedMatch = trimmed.match(/import\s*\{([^}]+)\}/);
-      if (namedMatch) {
-        const names = namedMatch[1].split(',');
-        for (const name of names) {
-          const parts = name.trim().split(/\s+as\s+/);
-          const localName = (parts[1] || parts[0]).trim();
-          if (localName) this.externalImportVars.add(localName);
+        // Track the library name for library-aware detection
+        // Normalize scoped packages: '@xyflow/react' → '@xyflow/react', 'recharts' → 'recharts'
+        const libName = importPath.startsWith('@')
+          ? importPath.split('/').slice(0, 2).join('/')
+          : importPath.split('/')[0];
+        this.detectedLibraries.add(libName);
+        // Also track the full path for sub-packages like 'next/router'
+        if (importPath !== libName) {
+          this.detectedLibraries.add(importPath);
+        }
+
+        // Named imports: import { a, b as c } from 'pkg'
+        const namedMatch = trimmed.match(/import\s*\{([^}]+)\}/);
+        if (namedMatch) {
+          const names = namedMatch[1].split(',');
+          for (const name of names) {
+            const parts = name.trim().split(/\s+as\s+/);
+            const localName = (parts[1] || parts[0]).trim();
+            if (localName) this.externalImportVars.add(localName);
+          }
+        }
+
+        // Default import: import Xyz from 'pkg'
+        const defaultMatch = trimmed.match(/import\s+(\w+)\s+from/);
+        if (defaultMatch) {
+          this.externalImportVars.add(defaultMatch[1]);
+        }
+
+        // Namespace import: import * as xyz from 'pkg'
+        const namespaceMatch = trimmed.match(/import\s+\*\s+as\s+(\w+)\s+from/);
+        if (namespaceMatch) {
+          this.externalImportVars.add(namespaceMatch[1]);
         }
       }
 
-      // Default import: import Xyz from 'pkg'
-      const defaultMatch = trimmed.match(/import\s+(\w+)\s+from/);
-      if (defaultMatch) {
-        this.externalImportVars.add(defaultMatch[1]);
-      }
-
-      // Namespace import: import * as xyz from 'pkg'
-      const namespaceMatch = trimmed.match(/import\s+\*\s+as\s+(\w+)\s+from/);
-      if (namespaceMatch) {
-        this.externalImportVars.add(namespaceMatch[1]);
-      }
-
+      // Handle require statements
       // require: const xyz = require('pkg')
       const requireMatch = trimmed.match(/(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
       if (requireMatch && !requireMatch[2].startsWith('.')) {
         this.externalImportVars.add(requireMatch[1]);
+        const libName = requireMatch[2].startsWith('@')
+          ? requireMatch[2].split('/').slice(0, 2).join('/')
+          : requireMatch[2].split('/')[0];
+        this.detectedLibraries.add(libName);
       }
 
       // Destructured require: const { a, b } = require('pkg')
@@ -794,6 +916,10 @@ export class FunctionSignatureMatchingRule implements IRule {
           const localName = (parts[1] || parts[0]).trim();
           if (localName) this.externalImportVars.add(localName);
         }
+        const libName = destructuredRequire[2].startsWith('@')
+          ? destructuredRequire[2].split('/').slice(0, 2).join('/')
+          : destructuredRequire[2].split('/')[0];
+        this.detectedLibraries.add(libName);
       }
     }
   }
@@ -859,72 +985,122 @@ export class FunctionSignatureMatchingRule implements IRule {
 
   /**
    * Check if the field access is a built-in JavaScript/TypeScript pattern
-   * or a well-known external library object pattern.
+   * or a well-known external library / framework object pattern.
    */
   private isBuiltinObjectAccess(objectVar: string, fieldName: string): boolean {
     // Built-in JS/TS global objects
-    const builtinObjects = [
+    const builtinObjects = new Set([
       'console', 'Math', 'JSON', 'Object', 'Array', 'Promise', 'Date', 'String',
       'Number', 'Boolean', 'RegExp', 'Error', 'Symbol', 'Map', 'Set', 'WeakMap',
       'WeakSet', 'Reflect', 'Proxy', 'process', 'Buffer', 'global', 'window',
       'document', 'navigator', 'localStorage', 'sessionStorage', 'location',
-      'history', 'performance', 'crypto', 'Intl',
-    ];
+      'history', 'performance', 'crypto', 'Intl', 'URL', 'URLSearchParams',
+      'AbortController', 'FormData', 'Headers', 'Response', 'Request',
+      'ReadableStream', 'WritableStream', 'TextEncoder', 'TextDecoder',
+      'Blob', 'File', 'FileReader', 'EventTarget', 'XMLHttpRequest',
+    ]);
     
-    if (builtinObjects.includes(objectVar)) return true;
+    if (builtinObjects.has(objectVar)) return true;
 
-    // Common external library / framework objects that should never be matched
-    // against internal API types
-    const externalLibObjects = [
-      // DOM / Browser events
-      'event', 'e', 'ev', 'evt',
-      // Express / Koa / Fastify
-      'req', 'res', 'ctx', 'request', 'response', 'next',
-      // React / ReactFlow
-      'node', 'edge', 'props', 'ref', 'state',
+    // Common variable names that come from callbacks, destructuring, or
+    // external library patterns. These should NEVER be matched against
+    // internal API type fields.
+    const commonObjectVars = new Set([
+      // DOM / Browser events (callback params, not imports)
+      'event', 'e', 'ev', 'evt', 'err',
+      // Express / Koa / Fastify / HTTP
+      'req', 'res', 'ctx', 'request', 'response', 'next', 'middleware',
+      // React / ReactFlow / Component patterns
+      'node', 'edge', 'props', 'ref', 'state', 'context', 'prevState',
+      'nextProps', 'prevProps', 'component', 'element', 'el',
+      // Callback/iterator variable names (forEach/map/filter/reduce)
+      'item', 'entry', 'elem', 'val', 'curr', 'acc', 'prev', 'idx',
+      'key', 'value', 'pair', 'record', 'row', 'col', 'cell', 'tick',
       // Node.js built-in modules
-      'path', 'fs', 'os', 'http', 'https', 'url', 'util', 'stream', 'child',
-      // Common library objects
-      'router', 'app', 'server', 'socket', 'io', 'db', 'client', 'connection',
-      'schema', 'model', 'config', 'env', 'logger',
+      'path', 'fs', 'os', 'http', 'https', 'url', 'util', 'stream',
+      'child', 'crypto', 'zlib', 'net', 'dns', 'tls', 'cluster',
+      // Common library / framework objects
+      'router', 'app', 'server', 'socket', 'io', 'db', 'client',
+      'connection', 'pool', 'cursor', 'transaction',
+      'schema', 'model', 'query', 'builder',
+      'config', 'env', 'logger', 'log',
+      'store', 'dispatch', 'action', 'reducer', 'selector',
+      'chart', 'graph', 'diagram', 'canvas', 'viewport', 'scene',
+      'payload', 'packet', 'frame', 'message', 'signal',
+      'token', 'session', 'cookie', 'cache',
+      'worker', 'job', 'task', 'queue', 'scheduler',
+      'plugin', 'middleware', 'hook', 'handler', 'listener',
+      'parser', 'serializer', 'formatter', 'validator',
       // Test frameworks
       'expect', 'assert', 'mock', 'jest', 'sinon', 'chai',
-    ];
+      'suite', 'spec', 'fixture', 'stub', 'spy',
+      // Misc extremely common var names
+      'self', 'that', 'instance', 'obj', 'options', 'args', 'params',
+      'result', 'output', 'input', 'source', 'target', 'dest',
+      'parent', 'child', 'root', 'leaf', 'cursor',
+    ]);
 
-    if (externalLibObjects.includes(objectVar)) return true;
+    if (commonObjectVars.has(objectVar)) return true;
     
-    // Common method/property names that are part of JS/TS standard APIs
-    // or universally used field names unlikely to be internal API fields
-    const commonFields = [
+    // Common field/property names that are part of JS/TS standard APIs,
+    // framework patterns, or universally used field names.
+    const commonFields = new Set([
+      // Array/Object/String/Collection methods
       'length', 'map', 'filter', 'reduce', 'forEach', 'find', 'some', 'every',
       'includes', 'indexOf', 'slice', 'splice', 'concat', 'join', 'split',
       'trim', 'toLowerCase', 'toUpperCase', 'toString', 'valueOf', 'keys',
       'values', 'entries', 'push', 'pop', 'shift', 'unshift', 'sort', 'reverse',
+      'flat', 'flatMap', 'fill', 'copyWithin', 'at', 'findIndex', 'findLast',
+      // Promise methods
       'then', 'catch', 'finally', 'resolve', 'reject', 'all', 'race',
+      'allSettled', 'any',
+      // Object/class
       'prototype', 'constructor', 'call', 'apply', 'bind',
-      'log', 'error', 'warn', 'info', 'debug', 'table',
+      'hasOwnProperty', 'assign', 'freeze', 'seal', 'create', 'defineProperty',
+      // Console
+      'log', 'error', 'warn', 'info', 'debug', 'table', 'trace', 'dir', 'time', 'timeEnd',
+      // HTTP / Fetch / Response
       'json', 'body', 'headers', 'status', 'statusText', 'ok', 'text',
+      'blob', 'arrayBuffer', 'clone', 'redirect', 'formData',
+      // Map/Set
       'get', 'set', 'has', 'delete', 'clear', 'size', 'add',
       // DOM event properties
       'target', 'currentTarget', 'preventDefault', 'stopPropagation',
+      'stopImmediatePropagation', 'composedPath',
       'key', 'keyCode', 'which', 'charCode', 'metaKey', 'ctrlKey',
       'shiftKey', 'altKey', 'clientX', 'clientY', 'pageX', 'pageY',
       'offsetX', 'offsetY', 'screenX', 'screenY', 'button', 'buttons',
       'type', 'bubbles', 'cancelable', 'timeStamp', 'isTrusted',
+      'detail', 'deltaX', 'deltaY', 'deltaZ', 'deltaMode',
+      'touches', 'changedTouches', 'targetTouches',
+      'relatedTarget', 'clipboardData', 'dataTransfer',
       // React / component props
       'children', 'className', 'style', 'onClick', 'onChange', 'onSubmit',
-      'ref', 'key', 'id', 'value', 'checked', 'disabled', 'placeholder',
+      'onBlur', 'onFocus', 'onKeyDown', 'onKeyUp', 'onMouseDown', 'onMouseUp',
+      'ref', 'id', 'value', 'checked', 'disabled', 'placeholder',
       'current', 'setState', 'forceUpdate', 'render', 'componentDidMount',
+      'defaultProps', 'displayName', 'propTypes',
       // Node/graph objects (ReactFlow etc.)
-      'source', 'target', 'sourceHandle', 'targetHandle', 'animated',
+      'source', 'sourceHandle', 'targetHandle', 'animated',
       'selected', 'dragging', 'position', 'parentNode', 'extent',
+      'data', 'positionAbsolute', 'width', 'height', 'zIndex',
+      'markerEnd', 'markerStart', 'interactionWidth',
+      // Chart libraries (Recharts, Chart.js, D3)
+      'dataKey', 'payload', 'fill', 'stroke', 'strokeWidth',
+      'activeDot', 'dot', 'legendType', 'tickFormatter',
+      'datasetIndex', 'dataIndex', 'parsed', 'formattedValue',
       // Data access patterns
-      'payload', 'result', 'results', 'items', 'rows', 'count',
+      'result', 'results', 'items', 'rows', 'count', 'total',
       'message', 'code', 'success', 'failure', 'stack', 'cause',
       'name', 'label', 'title', 'description', 'content',
-    ];
+      'index', 'offset', 'limit', 'page', 'cursor', 'next', 'prev',
+      // Config / settings
+      'enabled', 'timeout', 'interval', 'retries', 'maxRetries',
+      'host', 'port', 'protocol', 'hostname', 'pathname',
+      'baseURL', 'baseUrl', 'url', 'method', 'path',
+    ]);
     
-    return commonFields.includes(fieldName);
+    return commonFields.has(fieldName);
   }
 
   // ==========================================================================

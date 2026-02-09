@@ -2,7 +2,7 @@
  * Version and metadata for Camouf CLI
  */
 
-export const version = '0.6.2';
+export const version = '0.7.0';
 export const name = 'camouf';
 export const description = 'Architecture guardrails for AI-generated code';
 
