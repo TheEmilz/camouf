@@ -37,6 +37,21 @@ interface FunctionSignatureConfig extends RuleConfig {
   checkTypeFields?: boolean;
   /** Generate quick-fix commands */
   generateQuickFixes?: boolean;
+  /** 
+   * Patterns to ignore in type field access checks.
+   * Supports exact matches ("node.data") and wildcards ("event.*", "*.metaKey").
+   */
+  ignoreFieldPatterns?: string[];
+  /**
+   * Automatically ignore field access on objects imported from external packages.
+   * Default: true
+   */
+  ignoreExternalImports?: boolean;
+  /**
+   * Additional object variable names to skip during field access checks.
+   * These are typically variables from external libraries (e.g. "node" from ReactFlow).
+   */
+  externalLibraryObjects?: string[];
 }
 
 // ============================================================================
@@ -132,6 +147,9 @@ export class FunctionSignatureMatchingRule implements IRule {
     checkParameterNames: true,
     checkTypeFields: true,
     generateQuickFixes: true,
+    ignoreFieldPatterns: [],
+    ignoreExternalImports: true,
+    externalLibraryObjects: [],
   };
 
   // Cache for parsed exports
@@ -139,6 +157,8 @@ export class FunctionSignatureMatchingRule implements IRule {
   private exportedTypes: Map<string, ExportedType> = new Map();
   private mismatches: SignatureMismatch[] = [];
   private mismatchCounter = 0;
+  // Track which variable names are imported from external packages (per file)
+  private externalImportVars: Set<string> = new Set();
 
   configure(options: Partial<FunctionSignatureConfig>): void {
     this.config = { ...this.config, ...options };
@@ -469,6 +489,12 @@ export class FunctionSignatureMatchingRule implements IRule {
   private checkFileForMismatches(filePath: string, content: string, violations: Violation[]): void {
     const lines = content.split('\n');
 
+    // Extract external imports for this file (used to skip external lib field access)
+    if (this.config.ignoreExternalImports) {
+      this.externalImportVars.clear();
+      this.extractExternalImportVars(lines);
+    }
+
     // Check function calls
     this.checkFunctionCalls(filePath, lines, violations);
 
@@ -647,7 +673,6 @@ export class FunctionSignatureMatchingRule implements IRule {
       }
     }
 
-    // Build flat list of field names for matching
     // Build flat list of field names for matching (used implicitly via typeFieldMap)
 
     // Check for field access patterns that might not match
@@ -668,6 +693,15 @@ export class FunctionSignatureMatchingRule implements IRule {
 
         // Skip common JS builtins like console.log, Promise.resolve, etc.
         if (this.isBuiltinObjectAccess(objectVar, fieldName)) continue;
+
+        // Skip if matching user-defined ignore patterns
+        if (this.matchesIgnorePattern(objectVar, fieldName)) continue;
+
+        // Skip if object comes from an external import
+        if (this.config.ignoreExternalImports && this.externalImportVars.has(objectVar)) continue;
+
+        // Skip if object is in the user-defined externalLibraryObjects list
+        if (this.config.externalLibraryObjects?.includes(objectVar)) continue;
 
         // Find best matching field using enhanced similarity
         const similar = this.findSimilarFields(fieldName, typeFieldMap);
@@ -702,6 +736,97 @@ export class FunctionSignatureMatchingRule implements IRule {
     }
   }
 
+  // ==========================================================================
+  // External Import & Ignore Pattern Helpers
+  // ==========================================================================
+
+  /**
+   * Extract variable names that are imported from external (non-relative) packages.
+   * These are objects from node_modules (e.g. ReactFlow, Express, Recharts).
+   */
+  private extractExternalImportVars(lines: string[]): void {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('import')) continue;
+
+      // Only flag non-relative imports (external packages)
+      // Skip: import from './...' or '../...'
+      const fromMatch = trimmed.match(/from\s+['"]([^'"]+)['"]/);
+      if (!fromMatch) continue;
+      const importPath = fromMatch[1];
+      if (importPath.startsWith('.') || importPath.startsWith('/')) continue;
+
+      // Named imports: import { a, b as c } from 'pkg'
+      const namedMatch = trimmed.match(/import\s*\{([^}]+)\}/);
+      if (namedMatch) {
+        const names = namedMatch[1].split(',');
+        for (const name of names) {
+          const parts = name.trim().split(/\s+as\s+/);
+          const localName = (parts[1] || parts[0]).trim();
+          if (localName) this.externalImportVars.add(localName);
+        }
+      }
+
+      // Default import: import Xyz from 'pkg'
+      const defaultMatch = trimmed.match(/import\s+(\w+)\s+from/);
+      if (defaultMatch) {
+        this.externalImportVars.add(defaultMatch[1]);
+      }
+
+      // Namespace import: import * as xyz from 'pkg'
+      const namespaceMatch = trimmed.match(/import\s+\*\s+as\s+(\w+)\s+from/);
+      if (namespaceMatch) {
+        this.externalImportVars.add(namespaceMatch[1]);
+      }
+
+      // require: const xyz = require('pkg')
+      const requireMatch = trimmed.match(/(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+      if (requireMatch && !requireMatch[2].startsWith('.')) {
+        this.externalImportVars.add(requireMatch[1]);
+      }
+
+      // Destructured require: const { a, b } = require('pkg')
+      const destructuredRequire = trimmed.match(/(?:const|let|var)\s*\{([^}]+)\}\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+      if (destructuredRequire && !destructuredRequire[2].startsWith('.')) {
+        const names = destructuredRequire[1].split(',');
+        for (const name of names) {
+          const parts = name.trim().split(/\s*:\s*/);
+          const localName = (parts[1] || parts[0]).trim();
+          if (localName) this.externalImportVars.add(localName);
+        }
+      }
+    }
+  }
+
+  /**
+   * Check if a field access matches any user-defined ignore pattern.
+   * Supports:
+   *   - Exact: "node.data"
+   *   - Object wildcard: "event.*" (any field on event)
+   *   - Field wildcard: "*.metaKey" (metaKey on any object)
+   */
+  private matchesIgnorePattern(objectVar: string, fieldName: string): boolean {
+    const patterns = this.config.ignoreFieldPatterns;
+    if (!patterns || patterns.length === 0) return false;
+
+    const fullAccess = `${objectVar}.${fieldName}`;
+
+    for (const pattern of patterns) {
+      // Exact match
+      if (pattern === fullAccess) return true;
+
+      // Wildcard matching
+      if (pattern.includes('*')) {
+        const regex = new RegExp(
+          '^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '\\w+') + '$'
+        );
+        if (regex.test(fullAccess)) return true;
+      }
+    }
+
+    return false;
+  }
+
   /**
    * Find similar type fields using enhanced matching strategies
    */
@@ -734,16 +859,72 @@ export class FunctionSignatureMatchingRule implements IRule {
 
   /**
    * Check if the field access is a built-in JavaScript/TypeScript pattern
+   * or a well-known external library object pattern.
    */
   private isBuiltinObjectAccess(objectVar: string, fieldName: string): boolean {
-    const builtinObjects = ['console', 'Math', 'JSON', 'Object', 'Array', 'Promise', 'Date', 'String', 'Number', 'Boolean', 'RegExp', 'Error', 'Symbol', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Reflect', 'Proxy', 'process', 'Buffer', 'global', 'window', 'document', 'navigator'];
+    // Built-in JS/TS global objects
+    const builtinObjects = [
+      'console', 'Math', 'JSON', 'Object', 'Array', 'Promise', 'Date', 'String',
+      'Number', 'Boolean', 'RegExp', 'Error', 'Symbol', 'Map', 'Set', 'WeakMap',
+      'WeakSet', 'Reflect', 'Proxy', 'process', 'Buffer', 'global', 'window',
+      'document', 'navigator', 'localStorage', 'sessionStorage', 'location',
+      'history', 'performance', 'crypto', 'Intl',
+    ];
     
     if (builtinObjects.includes(objectVar)) return true;
+
+    // Common external library / framework objects that should never be matched
+    // against internal API types
+    const externalLibObjects = [
+      // DOM / Browser events
+      'event', 'e', 'ev', 'evt',
+      // Express / Koa / Fastify
+      'req', 'res', 'ctx', 'request', 'response', 'next',
+      // React / ReactFlow
+      'node', 'edge', 'props', 'ref', 'state',
+      // Node.js built-in modules
+      'path', 'fs', 'os', 'http', 'https', 'url', 'util', 'stream', 'child',
+      // Common library objects
+      'router', 'app', 'server', 'socket', 'io', 'db', 'client', 'connection',
+      'schema', 'model', 'config', 'env', 'logger',
+      // Test frameworks
+      'expect', 'assert', 'mock', 'jest', 'sinon', 'chai',
+    ];
+
+    if (externalLibObjects.includes(objectVar)) return true;
     
-    // Skip common method/property access
-    const commonMethods = ['length', 'map', 'filter', 'reduce', 'forEach', 'find', 'some', 'every', 'includes', 'indexOf', 'slice', 'splice', 'concat', 'join', 'split', 'trim', 'toLowerCase', 'toUpperCase', 'toString', 'valueOf', 'keys', 'values', 'entries', 'push', 'pop', 'shift', 'unshift', 'sort', 'reverse', 'then', 'catch', 'finally', 'resolve', 'reject', 'all', 'race', 'prototype', 'constructor', 'call', 'apply', 'bind', 'log', 'error', 'warn', 'info', 'debug', 'table', 'json', 'body', 'headers', 'status', 'statusText', 'ok', 'text', 'get', 'set', 'has', 'delete', 'clear', 'size', 'add'];
+    // Common method/property names that are part of JS/TS standard APIs
+    // or universally used field names unlikely to be internal API fields
+    const commonFields = [
+      'length', 'map', 'filter', 'reduce', 'forEach', 'find', 'some', 'every',
+      'includes', 'indexOf', 'slice', 'splice', 'concat', 'join', 'split',
+      'trim', 'toLowerCase', 'toUpperCase', 'toString', 'valueOf', 'keys',
+      'values', 'entries', 'push', 'pop', 'shift', 'unshift', 'sort', 'reverse',
+      'then', 'catch', 'finally', 'resolve', 'reject', 'all', 'race',
+      'prototype', 'constructor', 'call', 'apply', 'bind',
+      'log', 'error', 'warn', 'info', 'debug', 'table',
+      'json', 'body', 'headers', 'status', 'statusText', 'ok', 'text',
+      'get', 'set', 'has', 'delete', 'clear', 'size', 'add',
+      // DOM event properties
+      'target', 'currentTarget', 'preventDefault', 'stopPropagation',
+      'key', 'keyCode', 'which', 'charCode', 'metaKey', 'ctrlKey',
+      'shiftKey', 'altKey', 'clientX', 'clientY', 'pageX', 'pageY',
+      'offsetX', 'offsetY', 'screenX', 'screenY', 'button', 'buttons',
+      'type', 'bubbles', 'cancelable', 'timeStamp', 'isTrusted',
+      // React / component props
+      'children', 'className', 'style', 'onClick', 'onChange', 'onSubmit',
+      'ref', 'key', 'id', 'value', 'checked', 'disabled', 'placeholder',
+      'current', 'setState', 'forceUpdate', 'render', 'componentDidMount',
+      // Node/graph objects (ReactFlow etc.)
+      'source', 'target', 'sourceHandle', 'targetHandle', 'animated',
+      'selected', 'dragging', 'position', 'parentNode', 'extent',
+      // Data access patterns
+      'payload', 'result', 'results', 'items', 'rows', 'count',
+      'message', 'code', 'success', 'failure', 'stack', 'cause',
+      'name', 'label', 'title', 'description', 'content',
+    ];
     
-    return commonMethods.includes(fieldName);
+    return commonFields.includes(fieldName);
   }
 
   // ==========================================================================
@@ -1122,6 +1303,24 @@ const email = response.email; // Correct - matches DTO`,
           type: 'boolean',
           description: 'Check type/interface field access for mismatches',
           default: true,
+        },
+        {
+          name: 'ignoreFieldPatterns',
+          type: 'array',
+          description: 'Patterns to ignore in field access checks. Supports exact ("node.data") and wildcards ("event.*", "*.metaKey")',
+          default: [],
+        },
+        {
+          name: 'ignoreExternalImports',
+          type: 'boolean',
+          description: 'Auto-skip field access on objects imported from external packages (node_modules)',
+          default: true,
+        },
+        {
+          name: 'externalLibraryObjects',
+          type: 'array',
+          description: 'Additional object variable names to skip (e.g. "node" from ReactFlow, "payload" from Recharts)',
+          default: [],
         },
       ],
       relatedRules: ['contract-mismatch', 'type-safety'],

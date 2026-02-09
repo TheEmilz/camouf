@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-02-09
+
+### Fixed
+- **Dramatically reduced false positives in `function-signature-matching` type field checks** - The rule was incorrectly flagging field access on external library objects (ReactFlow `node.data`, DOM `event.metaKey`, Recharts `payload.payload`, etc.) as type mismatches against internal API schemas
+
+### Added
+- **External import auto-detection** (`ignoreExternalImports`, default: `true`) — Automatically parses `import`/`require` statements and skips field access checks on variables imported from `node_modules` packages
+- **Ignore field patterns** (`ignoreFieldPatterns`) — User-configurable patterns to exclude from type field checks, with wildcard support:
+  - Exact: `"node.data"` 
+  - Object wildcard: `"event.*"` (any field on event)
+  - Field wildcard: `"*.metaKey"` (metaKey on any object)
+- **External library objects list** (`externalLibraryObjects`) — User-configurable list of additional variable names to always skip (e.g. `"node"` from ReactFlow)
+- **Expanded built-in allowlist** — Added 80+ common objects and fields from DOM, React, Express, Node.js, and test frameworks to the skip list
+
+### Example config
+```json
+{
+  "rules": {
+    "builtin": {
+      "function-signature-matching": {
+        "level": "error",
+        "options": {
+          "ignoreFieldPatterns": ["node.*", "event.*", "payload.payload"],
+          "externalLibraryObjects": ["graph", "chart"],
+          "ignoreExternalImports": true
+        }
+      }
+    }
+  }
+}
+```
+
 ## [0.6.1] - 2026-02-09
 
 ### Added
