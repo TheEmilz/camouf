@@ -55,9 +55,29 @@ export class PropDrillingDetectionRule implements IRule {
 
   // Common props that are often legitimately passed through
   private readonly commonProps = new Set([
+    // Layout & styling
     'className', 'style', 'children', 'id', 'key', 'ref',
-    'onClick', 'onChange', 'onSubmit', 'disabled', 'loading',
-    'as', 'component', 'variant', 'size', 'color', 'type',
+    // Event handlers
+    'onClick', 'onChange', 'onSubmit', 'onBlur', 'onFocus',
+    'onKeyDown', 'onKeyUp', 'onMouseDown', 'onMouseUp', 'onScroll',
+    // UI state
+    'disabled', 'loading', 'visible', 'hidden', 'active', 'selected',
+    'checked', 'open', 'closed', 'expanded', 'collapsed',
+    // Component variants
+    'as', 'component', 'variant', 'size', 'color', 'type', 'theme',
+    'mode', 'layout', 'orientation', 'position', 'align',
+    // Very generic names that appear across unrelated components
+    'data', 'value', 'values', 'name', 'label', 'title', 'text',
+    'description', 'placeholder', 'content', 'message', 'error',
+    'status', 'state', 'result', 'results', 'item', 'items',
+    'list', 'options', 'config', 'settings', 'info',
+    'count', 'total', 'index', 'level', 'depth',
+    'width', 'height', 'min', 'max', 'step',
+    'src', 'href', 'url', 'path', 'icon', 'image',
+    'header', 'footer', 'prefix', 'suffix',
+    'onClose', 'onOpen', 'onSelect', 'onDelete', 'onEdit', 'onSave',
+    'onCancel', 'onConfirm', 'onError', 'onSuccess', 'onLoad',
+    'renderItem', 'render', 'fallback',
   ]);
 
   configure(options: Partial<PropDrillingConfig>): void {
@@ -295,6 +315,27 @@ export class PropDrillingDetectionRule implements IRule {
     const chains: PropChain[] = [];
     const propToUsages = new Map<string, PropUsage[]>();
 
+    // Build a set of files that import each other for parent→child verification
+    const importGraph = new Map<string, Set<string>>();
+    // Initialize all nodes
+    for (const nodeId of context.graph.nodes()) {
+      const node = context.getNodeData(nodeId);
+      if (node) {
+        importGraph.set(node.data.relativePath, new Set<string>());
+      }
+    }
+    // Use edges to build import relationships
+    for (const edge of context.graph.edges()) {
+      const sourceNode = context.getNodeData(edge.v);
+      const targetNode = context.getNodeData(edge.w);
+      if (sourceNode && targetNode) {
+        const imports = importGraph.get(sourceNode.data.relativePath);
+        if (imports) {
+          imports.add(targetNode.data.relativePath);
+        }
+      }
+    }
+
     // Flatten all prop usages
     for (const [_file, propsMap] of componentProps) {
       for (const [propName, usages] of propsMap) {
@@ -310,14 +351,43 @@ export class PropDrillingDetectionRule implements IRule {
       const passOnlyUsages = usages.filter(u => u.isPassedDown && !u.isUsed);
       
       if (passOnlyUsages.length >= (this.config.maxDepth! - 1)) {
-        chains.push({
-          propName,
-          chain: usages,
-          depth: passOnlyUsages.length + 1,
-        });
+        // Verify there's an actual import chain between the files
+        // (at least some files must import others in the chain)
+        const files = usages.map(u => u.file);
+        const hasRealChain = this.verifyImportChain(files, importGraph);
+        
+        if (hasRealChain) {
+          chains.push({
+            propName,
+            chain: usages,
+            depth: passOnlyUsages.length + 1,
+          });
+        }
       }
     }
 
     return chains;
+  }
+
+  /**
+   * Verify that the files form a real import chain (at least one file imports another).
+   * This prevents false positives from unrelated components sharing a common prop name.
+   */
+  private verifyImportChain(files: string[], importGraph: Map<string, Set<string>>): boolean {
+    const uniqueFiles = [...new Set(files)];
+    if (uniqueFiles.length <= 1) return false;
+
+    // Check if at least one pair of files has an import relationship
+    for (const file of uniqueFiles) {
+      const imports = importGraph.get(file);
+      if (!imports) continue;
+      for (const otherFile of uniqueFiles) {
+        if (file !== otherFile && imports.has(otherFile)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 }

@@ -269,7 +269,14 @@ export class StaleClosurePatternsRule implements IRule {
   ): string[] {
     const staleVars: string[] = [];
 
+    // Collect locally declared/shadowed variable names within the callback
+    const shadowedNames = this.extractShadowedNames(callback);
+
     for (const [stateName, { setter }] of stateVariables) {
+      // If the state variable name is shadowed by a local declaration,
+      // the reference in the callback is NOT the component state — skip it
+      if (shadowedNames.has(stateName)) continue;
+
       // Check if state is used directly without using functional update
       const statePattern = new RegExp(`\\b${stateName}\\b`, 'g');
       const setterPattern = new RegExp(`${setter}\\s*\\(\\s*${stateName}`, 'g');
@@ -285,6 +292,70 @@ export class StaleClosurePatternsRule implements IRule {
     }
 
     return staleVars;
+  }
+
+  /**
+   * Extract variable names that are locally declared inside the callback,
+   * which would shadow any component-scope state variables with the same name.
+   */
+  private extractShadowedNames(callback: string): Set<string> {
+    const names = new Set<string>();
+
+    // const/let/var declarations: const data = ..., let { data } = ...
+    const declPattern = /\b(?:const|let|var)\s+(?:\{([^}]+)\}|\[([^\]]+)\]|(\w+))\s*=/g;
+    let m;
+    while ((m = declPattern.exec(callback)) !== null) {
+      const source = m[1] || m[2] || m[3];
+      if (source) {
+        const varNames = source.matchAll(/\b([a-z][a-zA-Z0-9]*)\b/g);
+        for (const vm of varNames) {
+          names.add(vm[1]);
+        }
+      }
+    }
+
+    // Arrow function parameters: (data) => ..., data => ...
+    const arrowParams = callback.matchAll(/\(\s*([^)]*)\)\s*=>/g);
+    for (const ap of arrowParams) {
+      const params = ap[1].matchAll(/\b([a-z][a-zA-Z0-9]*)\b/g);
+      for (const pm of params) {
+        names.add(pm[1]);
+      }
+    }
+    // Single param arrow: data => (without parens)
+    const singleArrow = callback.matchAll(/(?:^|[,;{(\s])([a-z]\w*)\s*=>/g);
+    for (const sa of singleArrow) {
+      names.add(sa[1]);
+    }
+
+    // Function parameters: function(data) {}, function handler(data) {}
+    const funcParams = callback.matchAll(/function\s*\w*\s*\(\s*([^)]*)\)/g);
+    for (const fp of funcParams) {
+      const params = fp[1].matchAll(/\b([a-z][a-zA-Z0-9]*)\b/g);
+      for (const pm of params) {
+        names.add(pm[1]);
+      }
+    }
+
+    // for-of/for-in: for (const item of ...), for (const key in ...)
+    const forPattern = /for\s*\(\s*(?:const|let|var)\s+(?:\[([^\]]+)\]|\{([^}]+)\}|(\w+))\s+(?:of|in)/g;
+    while ((m = forPattern.exec(callback)) !== null) {
+      const source = m[1] || m[2] || m[3];
+      if (source) {
+        const varNames = source.matchAll(/\b([a-z][a-zA-Z0-9]*)\b/g);
+        for (const vm of varNames) {
+          names.add(vm[1]);
+        }
+      }
+    }
+
+    // catch (err) {}
+    const catchPattern = /catch\s*\(\s*(\w+)\s*\)/g;
+    while ((m = catchPattern.exec(callback)) !== null) {
+      names.add(m[1]);
+    }
+
+    return names;
   }
 
   private isInsideEmptyDepsEffect(content: string, lineNum: number): boolean {

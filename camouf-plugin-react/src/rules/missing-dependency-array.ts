@@ -223,8 +223,11 @@ export class MissingDependencyArrayRule implements IRule {
   private extractUsedVariables(body: string): string[] {
     const variables: string[] = [];
     
+    // First, collect all callback parameter names and local variable declarations
+    // so we can exclude them (they are NOT component-scope dependencies)
+    const localNames = this.extractLocalNames(body);
+    
     // Match identifiers that are likely state/props/context values
-    // This is a simplified heuristic
     const identifierPattern = /\b([a-z][a-zA-Z0-9]*)\b(?!\s*[:(])/g;
     let match;
 
@@ -232,13 +235,132 @@ export class MissingDependencyArrayRule implements IRule {
       const name = match[1];
       
       // Skip JS keywords and common globals
-      if (!this.isBuiltinOrKeyword(name)) {
-        variables.push(name);
-      }
+      if (this.isBuiltinOrKeyword(name)) continue;
+      
+      // Skip callback parameters and locally declared variables
+      if (localNames.has(name)) continue;
+
+      // Skip common iterator/callback parameter names
+      if (this.isCommonCallbackParam(name)) continue;
+      
+      variables.push(name);
     }
 
     // Deduplicate
     return [...new Set(variables)];
+  }
+
+  /**
+   * Extract names that are locally scoped within the hook body:
+   * - Arrow function parameters: (item) =>, (item, index) =>
+   * - Function parameters: function(item) {}, function handler(event) {}
+   * - Destructured params: ({ name, value }) =>
+   * - Local variable declarations: const x = ..., let y = ...
+   * - For-loop variables: for (const item of items)
+   */
+  private extractLocalNames(body: string): Set<string> {
+    const names = new Set<string>();
+
+    // Arrow function params: (item) =>, (item, index) =>, item =>
+    const arrowParamPatterns = [
+      /\(\s*([^)]*)\)\s*=>/g,                    // (params) =>
+      /(?:^|[,;{(\s])([a-z]\w*)\s*=>/g,          // single param =>
+    ];
+    
+    for (const pattern of arrowParamPatterns) {
+      let m;
+      while ((m = pattern.exec(body)) !== null) {
+        const params = m[1];
+        // Extract individual param names (handle destructuring, defaults, types)
+        const paramNames = params.matchAll(/\b([a-z][a-zA-Z0-9]*)\b(?=\s*[,)=:}]|\s*$)/g);
+        for (const pm of paramNames) {
+          names.add(pm[1]);
+        }
+      }
+    }
+
+    // Function params: function(item) {}, function handler(event) {}
+    const funcParamPattern = /function\s*\w*\s*\(\s*([^)]*)\)/g;
+    let fm;
+    while ((fm = funcParamPattern.exec(body)) !== null) {
+      const params = fm[1];
+      const paramNames = params.matchAll(/\b([a-z][a-zA-Z0-9]*)\b/g);
+      for (const pm of paramNames) {
+        names.add(pm[1]);
+      }
+    }
+
+    // Local variable declarations: const x =, let y =, var z =
+    const localDeclPattern = /\b(?:const|let|var)\s+(?:\{([^}]+)\}|(\w+))\s*=/g;
+    let lm;
+    while ((lm = localDeclPattern.exec(body)) !== null) {
+      if (lm[1]) {
+        // Destructured: const { a, b } = ...
+        const destructured = lm[1].matchAll(/\b([a-z][a-zA-Z0-9]*)\b/g);
+        for (const dm of destructured) {
+          names.add(dm[1]);
+        }
+      } else if (lm[2]) {
+        names.add(lm[2]);
+      }
+    }
+
+    // For-loop variables: for (const item of ...), for (const [key, val] of ...)
+    const forPattern = /for\s*\(\s*(?:const|let|var)\s+(?:\[([^\]]+)\]|\{([^}]+)\}|(\w+))\s+(?:of|in)/g;
+    let forM;
+    while ((forM = forPattern.exec(body)) !== null) {
+      const source = forM[1] || forM[2] || forM[3];
+      if (source) {
+        const varNames = source.matchAll(/\b([a-z][a-zA-Z0-9]*)\b/g);
+        for (const vm of varNames) {
+          names.add(vm[1]);
+        }
+      }
+    }
+
+    // .catch(err => ...), .catch((error) => ...)
+    const catchPattern = /\.catch\s*\(\s*(?:\(\s*)?(\w+)/g;
+    let cm;
+    while ((cm = catchPattern.exec(body)) !== null) {
+      names.add(cm[1]);
+    }
+
+    // try {} catch (err) {}
+    const tryCatchPattern = /catch\s*\(\s*(\w+)\s*\)/g;
+    let tcm;
+    while ((tcm = tryCatchPattern.exec(body)) !== null) {
+      names.add(tcm[1]);
+    }
+
+    return names;
+  }
+
+  /**
+   * Common callback parameter names that almost never refer to
+   * component-scope variables that should be dependencies.
+   */
+  private isCommonCallbackParam(name: string): boolean {
+    const commonParams = new Set([
+      // Iterator callbacks
+      'item', 'items', 'element', 'el', 'entry', 'node', 'child',
+      'acc', 'accumulator', 'curr', 'current', 'prev', 'previous', 'next',
+      'idx', 'index', 'i', 'j', 'k', 'n',
+      'key', 'val', 'value', 'pair', 'tuple',
+      'row', 'col', 'column', 'cell',
+      'char', 'str', 'line', 'word', 'token', 'match',
+      // Event handler params
+      'event', 'evt', 'ev', 'e',
+      // Promise/async callbacks
+      'res', 'response', 'result',
+      'rej', 'reason',
+      'err', 'error', 'ex', 'exception',
+      // General callback params
+      'cb', 'callback', 'fn', 'func', 'handler',
+      'arg', 'args', 'param', 'params', 'opt', 'opts', 'option', 'options',
+      'msg', 'message', 'payload', 'body', 'req', 'request',
+      'ctx', 'context', 'scope', 'self',
+    ]);
+    return commonParams.has(name);
   }
 
   private findMissingDependencies(usage: HookUsage): string[] {
