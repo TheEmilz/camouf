@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP server now declares `prompts` capability alongside `tools` and `resources`
 - `src/mcp/index.ts` exports `configResource` and registers prompts handlers
 
-## camouf-plugin-react [0.2.0] - 2026-02-12
+## camouf-plugin-react [0.2.1] - 2026-02-12
 
 ### Changed
 - **Import from `camouf` package** — All types (`IRule`, `RuleContext`, `Violation`, `CamoufPlugin`, etc.) now imported from `camouf/rules` and `camouf` instead of local duplicate `types.ts`. Eliminates 174 lines of duplicated type definitions and prevents future drift

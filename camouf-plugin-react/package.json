@@ -1,6 +1,6 @@
 {
   "name": "camouf-plugin-react",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "React-specific rules for Camouf - catches AI-generated React code errors",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,7 @@
     "camouf": ">=0.7.0"
   },
   "devDependencies": {
-    "camouf": "file:..",
+    "camouf": ">=0.8.0",
     "typescript": "^5.0.0"
   },
   "scripts": {
