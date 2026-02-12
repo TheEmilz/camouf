@@ -24,7 +24,7 @@
 
 import { Graph } from 'graphlib';
 import type { CamoufConfig } from '../types/config.types.js';
-import type { GraphNode, GraphEdge, ProjectFile, Dependency } from '../types/core.types.js';
+import type { GraphNode, GraphEdge, ProjectFile } from '../types/core.types.js';
 import type { RuleContext } from '../core/rules/rule.interface.js';
 import type { DependencyGraph } from '../core/scanner/project-scanner.js';
 
@@ -120,7 +120,7 @@ function resolveRelative(sourceFile: string, importPath: string): string {
     }
   }
 
-  let resolved = parts.join('/');
+  const resolved = parts.join('/');
 
   // Try to match against known file extensions
   const extensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.rs'];
