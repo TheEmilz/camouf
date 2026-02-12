@@ -10,7 +10,8 @@
  * - react/stale-closure-patterns: Detects stale closure bugs in hooks
  */
 
-import { CamoufPlugin, IRule, PluginLoadContext } from './types.js';
+import type { CamoufPlugin, PluginLoadContext } from 'camouf';
+import type { IRule } from 'camouf/rules';
 
 // Import rules
 import { MissingDependencyArrayRule } from './rules/missing-dependency-array.js';
@@ -36,13 +37,13 @@ function createRules(): IRule[] {
 const plugin: CamoufPlugin = {
   metadata: {
     name: 'camouf-plugin-react',
-    version: '0.1.2',
+    version: '0.2.0',
     displayName: 'Camouf React Plugin',
     description: 'React-specific rules for Camouf - catches AI-generated React code errors like missing hook dependencies, stale closures, and prop drilling',
     author: 'TheEmilz',
     homepage: 'https://github.com/TheEmilz/camouf/tree/main/camouf-plugin-react',
     types: ['rules'],
-    camoufVersion: '>=0.4.0',
+    camoufVersion: '>=0.7.0',
     keywords: [
       'react',
       'hooks',

@@ -10,7 +10,8 @@
  * - const todoItem = () => vs const TodoItem = () =>
  */
 
-import { IRule, RuleContext, RuleResult, RuleConfig, Violation } from '../types.js';
+import type { IRule, RuleContext, RuleResult, RuleConfig } from 'camouf/rules';
+import type { Violation } from 'camouf';
 import * as path from 'path';
 
 interface ComponentNamingConfig extends RuleConfig {

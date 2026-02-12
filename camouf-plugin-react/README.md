@@ -3,6 +3,8 @@
 React-specific rules for [Camouf](https://github.com/TheEmilz/camouf) — catches AI-generated React code errors that traditional linters miss.
 
 [![npm version](https://img.shields.io/npm/v/camouf-plugin-react.svg)](https://www.npmjs.com/package/camouf-plugin-react)
+[![camouf peer](https://img.shields.io/badge/camouf-%3E%3D0.7.0-blue)](https://www.npmjs.com/package/camouf)
+[![license](https://img.shields.io/npm/l/camouf-plugin-react.svg)](https://github.com/TheEmilz/camouf/blob/main/LICENSE)
 
 ## Why This Plugin?
 
@@ -220,4 +222,4 @@ Apache-2.0
 ## Related
 
 - [Camouf](https://github.com/TheEmilz/camouf) — Main architecture guardrails CLI
-- [Why AI Code Needs Different Guardrails](https://github.com/TheEmilz/camouf/blob/main/docs/ai-agent-challenges.md)
+- [Why AI Code Needs Different Guardrails](https://github.com/TheEmilz/camouf/blob/master/docs/ai-agent-challenges.md)

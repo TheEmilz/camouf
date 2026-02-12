@@ -106,7 +106,7 @@ npx camouf fix --id sig-001        # Fix a specific mismatch
 
 ## Features
 
-- **13+ Built-in Rules**: AI-specific and architecture validation rules
+- **18 Built-in Rules**: AI-specific and architecture validation rules
 - **Function/Field Matching**: Fuzzy matching to detect AI naming drift
 - **Circular Dependency Detection**: Find and break dependency cycles
 - **Real-time Watch Mode**: Continuous architecture monitoring
@@ -157,7 +157,7 @@ Running `npx camouf` or `npx camouf help` displays the full interactive help:
  ██║     ███████║██╔████╔██║██║   ██║██║   ██║█████╗
  ██║     ██╔══██║██║╚██╔╝██║██║   ██║██║   ██║██╔══╝
  ╚██████╗██║  ██║██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║
-  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝    v0.7.0
+  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝    v0.8.0
 
   Architecture guardrails for AI-generated code
 
@@ -175,6 +175,7 @@ Running `npx camouf` or `npx camouf help` displays the full interactive help:
     init [options]            Initialize configuration in the current project
                               --template <t>  Use preset (monorepo, fullstack)
                               --agent <type>  Generate CLAUDE.md / AGENTS.md
+                              --plugin        Scaffold a new Camouf plugin project
 
   Validation & Analysis:
     validate [options]        One-time architecture validation
@@ -332,8 +333,24 @@ Add to your Claude Desktop config (`%APPDATA%\Claude\claude_desktop_config.json`
 | Tool | Description |
 |------|-------------|
 | `camouf_validate` | Validate code against architecture rules |
-| `camouf_analyze` | Analyze project structure and conventions |
+| `camouf_analyze` | Analyze project structure and dependencies (uses real dependency graph) |
 | `camouf_suggest_fix` | Get fix suggestions for violations |
+
+### MCP Resources
+
+| Resource | Description |
+|----------|-------------|
+| `camouf://rules` | All available rules with enabled/disabled status (dynamic from config + plugins) |
+| `camouf://config` | Active project configuration, layers, and rule settings |
+
+### MCP Prompts
+
+| Prompt | Description |
+|--------|-------------|
+| `before-writing-code` | Workflow: analyze project architecture before generating code |
+| `after-generating-code` | Validate and fix loop with max 3 iterations |
+| `understanding-violations` | How to interpret severity levels and common AI violations |
+| `project-conventions` | Discover active rules, layers, naming conventions |
 
 ### Example: AI Self-Validation
 
@@ -770,23 +787,35 @@ camouf analyze --visualize -f dot -o ./reports
 
 ## Extending Camouf
 
+### Plugin Scaffolding
+
+The fastest way to create a new plugin:
+
+```bash
+npx camouf init --plugin
+```
+
+This generates a complete plugin project with package.json, tsconfig, entry point, and a rule template. See [Creating Plugins](docs/creating-plugins.md).
+
 ### Custom Rules
 
 For project-specific rules, implement the `IRule` interface:
 
 ```typescript
-import { IRule, RuleContext, RuleResult } from 'camouf';
+import type { IRule, RuleContext, RuleResult } from 'camouf/rules';
+import type { Violation } from 'camouf';
 
 export class MyCustomRule implements IRule {
   readonly id = 'my-custom-rule';
   readonly name = 'My Custom Rule';
   readonly description = 'Description of what the rule checks';
-  readonly severity = 'warning';
+  readonly severity = 'warning' as const;
   readonly tags = ['custom'];
 
   async check(context: RuleContext): Promise<RuleResult> {
+    const violations: Violation[] = [];
     // Your rule logic here
-    return { violations: [] };
+    return { violations };
   }
 }
 ```

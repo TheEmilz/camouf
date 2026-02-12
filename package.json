@@ -1,9 +1,32 @@
 {
   "name": "camouf",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Architecture guardrails for AI-generated code - catches the mistakes AI coding assistants make",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./rules": {
+      "types": "./dist/core/rules/rule.interface.d.ts",
+      "import": "./dist/core/rules/rule.interface.js"
+    },
+    "./plugin": {
+      "types": "./dist/core/plugins/index.d.ts",
+      "import": "./dist/core/plugins/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    }
+  },
   "bin": {
     "camouf": "./dist/cli/index.js"
   },

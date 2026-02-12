@@ -11,7 +11,8 @@
  * - Async function capturing outdated state
  */
 
-import { IRule, RuleContext, RuleResult, RuleConfig, Violation } from '../types.js';
+import type { IRule, RuleContext, RuleResult, RuleConfig } from 'camouf/rules';
+import type { Violation } from 'camouf';
 import * as path from 'path';
 
 interface StaleClosureConfig extends RuleConfig {

@@ -1,13 +1,16 @@
 /**
  * MCP Resource: camouf://rules
  * 
- * Exposes available Camouf rules as an MCP resource.
- * 
- * This allows AI agents to discover what rules are available
- * and understand what each rule checks for.
+ * Dynamically exposes available Camouf rules as an MCP resource.
+ * Reads rules from RuleEngine at runtime, ensuring plugin rules
+ * and config-disabled rules are correctly reflected.
  */
 
 import { Resource } from '@modelcontextprotocol/sdk/types.js';
+import { ConfigurationManager } from '../../core/config/configuration-manager.js';
+import { RuleEngine } from '../../core/rules/rule-engine.js';
+import { IRule } from '../../core/rules/rule.interface.js';
+import { CamoufConfig } from '../../types/config.types.js';
 
 /**
  * Resource definition for MCP
@@ -15,12 +18,12 @@ import { Resource } from '@modelcontextprotocol/sdk/types.js';
 export const definition: Resource = {
   uri: 'camouf://rules',
   name: 'Camouf Rules',
-  description: 'List of all available Camouf architecture rules',
+  description: 'List of all available Camouf architecture rules (dynamically generated from config and plugins)',
   mimeType: 'application/json',
 };
 
 /**
- * Rule documentation structure
+ * Rule documentation structure (generated from IRule at runtime)
  */
 interface RuleDoc {
   id: string;
@@ -29,21 +32,24 @@ interface RuleDoc {
   category: string;
   severity: string;
   tags: string[];
-  aiRelevance: string;
-  examples?: {
-    bad: string;
-    good: string;
-    explanation: string;
-  };
+  enabled: boolean;
+  source: 'builtin' | 'plugin';
 }
 
 /**
- * Handler for reading the rules resource
+ * Handler for reading the rules resource — generates dynamically
  */
 export async function handler(): Promise<{
   contents: Array<{ uri: string; mimeType: string; text: string }>;
 }> {
-  const rules = getAllRuleDocs();
+  let rules: RuleDoc[];
+
+  try {
+    rules = await getDynamicRuleDocs();
+  } catch {
+    // Fallback to basic rule metadata if core fails
+    rules = getFallbackRuleDocs();
+  }
 
   return {
     contents: [
@@ -53,6 +59,7 @@ export async function handler(): Promise<{
         text: JSON.stringify(
           {
             count: rules.length,
+            enabledCount: rules.filter(r => r.enabled).length,
             categories: [...new Set(rules.map(r => r.category))],
             rules,
           },
@@ -65,216 +72,118 @@ export async function handler(): Promise<{
 }
 
 /**
- * Get documentation for all rules
+ * Generate rule docs dynamically from RuleEngine
  */
-function getAllRuleDocs(): RuleDoc[] {
-  return [
-    // AI-Specific Rules
-    {
-      id: 'ai-hallucinated-imports',
-      name: 'AI Hallucinated Imports',
-      description: 'Detects imports of modules that do not exist in the project or npm registry',
-      category: 'ai-specific',
-      severity: 'error',
-      tags: ['ai-safety', 'imports', 'hallucination'],
-      aiRelevance: 'CRITICAL - AI frequently generates imports for non-existent modules',
-      examples: {
-        bad: `import { validateUser } from '@/utils/auth-helpers'; // File doesn't exist`,
-        good: `import { validateUser } from '@/utils/auth'; // Actual file path`,
-        explanation: 'Verify file existence before importing. Check path aliases in tsconfig.json.',
-      },
-    },
-    {
-      id: 'context-drift-patterns',
-      name: 'Context Drift Patterns',
-      description: 'Detects when the same concept is named differently across the codebase',
-      category: 'ai-specific',
-      severity: 'warning',
-      tags: ['ai-safety', 'naming', 'consistency'],
-      aiRelevance: 'HIGH - AI loses context and creates naming inconsistencies',
-      examples: {
-        bad: `// File 1: User { userId: string }
-// File 2: Customer { id: string } // Same concept, different name`,
-        good: `// Consistent: User { userId: string } throughout`,
-        explanation: 'Use consistent naming for the same domain concepts across the codebase.',
-      },
-    },
-    {
-      id: 'phantom-type-references',
-      name: 'Phantom Type References',
-      description: 'Detects references to types that do not exist or were renamed',
-      category: 'ai-specific',
-      severity: 'error',
-      tags: ['ai-safety', 'types', 'typescript'],
-      aiRelevance: 'HIGH - AI may reference old type names from its training data',
-      examples: {
-        bad: `function process(order: OrderDTO) {} // OrderDTO doesn't exist`,
-        good: `function process(order: Order) {} // Order is the actual type`,
-        explanation: 'Always verify type exists before using. Check for similar type names.',
-      },
-    },
-    {
-      id: 'inconsistent-casing',
-      name: 'Inconsistent Casing',
-      description: 'Detects mixing of naming conventions (camelCase, snake_case) in the same codebase',
-      category: 'naming',
-      severity: 'warning',
-      tags: ['ai-safety', 'naming', 'style'],
-      aiRelevance: 'MEDIUM - AI switches naming conventions based on training data',
-      examples: {
-        bad: `getUserById()
-get_user_by_id() // Mixed conventions in same file`,
-        good: `getUserById()
-getUserByEmail() // Consistent camelCase`,
-        explanation: 'Follow the dominant naming convention in the codebase.',
-      },
-    },
-    {
-      id: 'orphaned-functions',
-      name: 'Orphaned Functions',
-      description: 'Detects functions that are declared but never called',
-      category: 'ai-specific',
-      severity: 'warning',
-      tags: ['ai-safety', 'dead-code', 'cleanup'],
-      aiRelevance: 'MEDIUM - AI sometimes generates helpers it never uses',
-      examples: {
-        bad: `function validateEmail(email: string) { ... } // Never called`,
-        good: `// Either remove unused function or add the call site`,
-        explanation: 'When creating helpers, immediately add the call site.',
-      },
-    },
+async function getDynamicRuleDocs(): Promise<RuleDoc[]> {
+  // Load config
+  const configManager = new ConfigurationManager();
+  let config = await configManager.loadConfig();
 
-    // Architecture Rules
-    {
-      id: 'layer-dependencies',
-      name: 'Layer Dependencies',
-      description: 'Enforces layer architecture (controllers should not import from data layer directly)',
-      category: 'architecture',
-      severity: 'error',
-      tags: ['architecture', 'layers', 'clean-code'],
-      aiRelevance: 'HIGH - AI may violate layer boundaries when generating quick solutions',
-    },
-    {
-      id: 'circular-dependencies',
-      name: 'Circular Dependencies',
-      description: 'Detects circular import chains that cause initialization issues',
-      category: 'architecture',
-      severity: 'error',
-      tags: ['architecture', 'dependencies', 'imports'],
-      aiRelevance: 'HIGH - AI may create circular dependencies when not seeing full context',
-    },
-    {
-      id: 'ddd-boundaries',
-      name: 'DDD Boundaries',
-      description: 'Enforces Domain-Driven Design aggregate boundaries',
-      category: 'architecture',
-      severity: 'warning',
-      tags: ['architecture', 'ddd', 'aggregates'],
-      aiRelevance: 'MEDIUM - AI may not understand domain boundaries',
-    },
+  if (!config) {
+    config = createDefaultConfig();
+  }
 
-    // Contract Rules
-    {
-      id: 'contract-mismatch',
-      name: 'Contract Mismatch',
-      description: 'Detects when function implementations do not match their contracts',
-      category: 'contracts',
-      severity: 'error',
-      tags: ['contracts', 'interfaces', 'types'],
-      aiRelevance: 'HIGH - AI may change signatures without updating callers',
-    },
-    {
-      id: 'function-signature-matching',
-      name: 'Function Signature Matching',
-      description: 'Ensures function calls match their declarations',
-      category: 'contracts',
-      severity: 'error',
-      tags: ['contracts', 'functions', 'types'],
-      aiRelevance: 'CRITICAL - AI may call functions with wrong argument types',
-    },
+  // Initialize RuleEngine (loads builtins + plugins)
+  const ruleEngine = new RuleEngine(config);
 
-    // Security Rules
-    {
-      id: 'hardcoded-secrets',
-      name: 'Hardcoded Secrets',
-      description: 'Detects API keys, passwords, and tokens hardcoded in source',
-      category: 'security',
-      severity: 'error',
-      tags: ['security', 'secrets', 'credentials'],
-      aiRelevance: 'HIGH - AI may generate placeholder secrets that get committed',
-    },
-    {
-      id: 'security-context',
-      name: 'Security Context',
-      description: 'Validates security context propagation across service boundaries',
-      category: 'security',
-      severity: 'warning',
-      tags: ['security', 'authentication', 'context'],
-      aiRelevance: 'MEDIUM - AI may forget to propagate security context',
-    },
+  const allRules = ruleEngine.getRules();
+  const enabledRules = new Set(ruleEngine.getEnabledRules().map(r => r.id));
 
-    // Performance Rules
-    {
-      id: 'performance-antipatterns',
-      name: 'Performance Anti-patterns',
-      description: 'Detects common performance issues like N+1 queries',
-      category: 'performance',
-      severity: 'warning',
-      tags: ['performance', 'optimization', 'queries'],
-      aiRelevance: 'MEDIUM - AI may generate inefficient code patterns',
-    },
+  return allRules.map((rule: IRule) => ({
+    id: rule.id,
+    name: rule.name,
+    description: rule.description,
+    category: rule.category || 'general',
+    severity: rule.severity || 'warning',
+    tags: rule.tags || [],
+    enabled: enabledRules.has(rule.id),
+    source: isBuiltinRule(rule.id) ? 'builtin' as const : 'plugin' as const,
+  }));
+}
 
-    // Data Flow Rules
-    {
-      id: 'data-flow-integrity',
-      name: 'Data Flow Integrity',
-      description: 'Ensures data transformations maintain type safety',
-      category: 'data-flow',
-      severity: 'warning',
-      tags: ['data-flow', 'types', 'transformations'],
-      aiRelevance: 'MEDIUM - AI may lose type information in transformations',
-    },
-    {
-      id: 'distributed-transactions',
-      name: 'Distributed Transactions',
-      description: 'Detects unsafe distributed transaction patterns',
-      category: 'data-flow',
-      severity: 'error',
-      tags: ['distributed', 'transactions', 'consistency'],
-      aiRelevance: 'LOW - AI rarely generates distributed transaction code',
-    },
+/**
+ * Check if a rule ID belongs to builtin rules
+ */
+function isBuiltinRule(ruleId: string): boolean {
+  const builtinIds = new Set([
+    'ai-hallucinated-imports',
+    'context-drift-patterns',
+    'phantom-type-references',
+    'inconsistent-casing',
+    'orphaned-functions',
+    'layer-dependencies',
+    'circular-dependencies',
+    'contract-mismatch',
+    'function-signature-matching',
+    'hardcoded-secrets',
+    'security-context',
+    'performance-antipatterns',
+    'ddd-boundaries',
+    'type-safety',
+    'api-versioning',
+    'data-flow-integrity',
+    'distributed-transactions',
+    'resilience-patterns',
+  ]);
+  return builtinIds.has(ruleId);
+}
 
-    // API Rules
-    {
-      id: 'api-versioning',
-      name: 'API Versioning',
-      description: 'Enforces API versioning best practices',
-      category: 'api',
-      severity: 'warning',
-      tags: ['api', 'versioning', 'breaking-changes'],
-      aiRelevance: 'LOW - AI follows existing patterns when visible',
-    },
-    {
-      id: 'resilience-patterns',
-      name: 'Resilience Patterns',
-      description: 'Ensures external calls have proper error handling and retries',
-      category: 'resilience',
-      severity: 'warning',
-      tags: ['resilience', 'error-handling', 'retries'],
-      aiRelevance: 'MEDIUM - AI may skip error handling for brevity',
-    },
-
-    // Type Safety Rules
-    {
-      id: 'type-safety',
-      name: 'Type Safety',
-      description: 'Detects type coercion and unsafe any usage',
-      category: 'types',
-      severity: 'warning',
-      tags: ['types', 'typescript', 'type-safety'],
-      aiRelevance: 'HIGH - AI may use any to avoid type errors',
-    },
+/**
+ * Fallback rule docs when core is not available
+ */
+function getFallbackRuleDocs(): RuleDoc[] {
+  const fallbackRules = [
+    { id: 'ai-hallucinated-imports', name: 'AI Hallucinated Imports', description: 'Detects imports of modules that do not exist', category: 'ai-specific' },
+    { id: 'context-drift-patterns', name: 'Context Drift Patterns', description: 'Detects naming inconsistencies for same concepts', category: 'ai-specific' },
+    { id: 'phantom-type-references', name: 'Phantom Type References', description: 'Detects references to types that do not exist', category: 'ai-specific' },
+    { id: 'inconsistent-casing', name: 'Inconsistent Casing', description: 'Detects mixed naming conventions', category: 'naming' },
+    { id: 'orphaned-functions', name: 'Orphaned Functions', description: 'Detects functions declared but never called', category: 'ai-specific' },
+    { id: 'function-signature-matching', name: 'Function Signature Matching', description: 'Ensures function calls match their declarations', category: 'contracts' },
+    { id: 'layer-dependencies', name: 'Layer Dependencies', description: 'Enforces layer architecture dependencies', category: 'architecture' },
+    { id: 'circular-dependencies', name: 'Circular Dependencies', description: 'Detects circular import chains', category: 'architecture' },
+    { id: 'contract-mismatch', name: 'Contract Mismatch', description: 'Detects contract inconsistencies between layers', category: 'contracts' },
+    { id: 'hardcoded-secrets', name: 'Hardcoded Secrets', description: 'Detects API keys and secrets in source', category: 'security' },
+    { id: 'security-context', name: 'Security Context', description: 'Validates security context propagation', category: 'security' },
+    { id: 'performance-antipatterns', name: 'Performance Anti-patterns', description: 'Detects N+1 queries and similar issues', category: 'performance' },
+    { id: 'ddd-boundaries', name: 'DDD Boundaries', description: 'Enforces DDD aggregate boundaries', category: 'architecture' },
+    { id: 'type-safety', name: 'Type Safety', description: 'Detects unsafe type usage', category: 'types' },
+    { id: 'api-versioning', name: 'API Versioning', description: 'Enforces API versioning best practices', category: 'api' },
+    { id: 'data-flow-integrity', name: 'Data Flow Integrity', description: 'Ensures data transformations maintain type safety', category: 'data-flow' },
+    { id: 'distributed-transactions', name: 'Distributed Transactions', description: 'Detects unsafe distributed transaction patterns', category: 'data-flow' },
+    { id: 'resilience-patterns', name: 'Resilience Patterns', description: 'Ensures proper error handling and retries', category: 'resilience' },
   ];
+
+  return fallbackRules.map(r => ({
+    ...r,
+    severity: 'warning',
+    tags: [],
+    enabled: true,
+    source: 'builtin' as const,
+  }));
+}
+
+/**
+ * Create default config when no config file found
+ */
+function createDefaultConfig(): CamoufConfig {
+  return {
+    name: 'camouf-mcp',
+    root: '.',
+    languages: ['typescript', 'javascript'],
+    layers: [],
+    directories: {
+      client: ['src/client', 'src/components', 'src/pages'],
+      server: ['src/server', 'src/api'],
+      shared: ['src/shared', 'src/common'],
+    },
+    rules: {
+      builtin: {},
+    },
+    patterns: {
+      include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+      exclude: ['**/node_modules/**', '**/dist/**'],
+    },
+  };
 }
 
 /**

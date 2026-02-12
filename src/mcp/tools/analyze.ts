@@ -1,17 +1,17 @@
 /**
  * MCP Tool: camouf_analyze
  * 
- * Analyzes code dependencies and architecture patterns.
+ * Analyzes code dependencies and architecture patterns using the Camouf core.
  * 
  * This tool helps AI understand the project structure before
  * generating new code, reducing the chance of violations.
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-// Config and analysis imports available for future use
-// import { ConfigurationManager } from '../../core/config/configuration-manager.js';
-// import { ProjectScanner } from '../../core/scanner/project-scanner.js';
-// import { DependencyAnalyzer } from '../../core/analyzer/dependency-analyzer.js';
+import { ConfigurationManager } from '../../core/config/configuration-manager.js';
+import { ProjectScanner } from '../../core/scanner/project-scanner.js';
+import { DependencyAnalyzer } from '../../core/analyzer/dependency-analyzer.js';
+import { CamoufConfig } from '../../types/config.types.js';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
@@ -50,7 +50,7 @@ This helps generate code that fits the existing architecture.`,
 };
 
 /**
- * Analysis result structure
+ * Analysis result structure — enriched with core analysis data
  */
 interface AnalysisResult {
   projectRoot: string;
@@ -58,11 +58,19 @@ interface AnalysisResult {
     directories: string[];
     fileCount: number;
     languages: Record<string, number>;
+    layers: Array<{ name: string; directories: string[]; fileCount: number }>;
   };
   dependencies: {
     external: string[];
     internal: string[];
     circularRisks: string[];
+    graphStats: {
+      totalNodes: number;
+      totalEdges: number;
+      averageCoupling: number;
+      maxCoupling: number;
+    };
+    hotspots: Array<{ file: string; dependents: number; dependencies: number }>;
   };
   types: {
     interfaces: string[];
@@ -75,6 +83,7 @@ interface AnalysisResult {
     importStyle: string;
   };
   suggestions: string[];
+  analysisSource: 'core' | 'fallback';
 }
 
 /**
@@ -115,9 +124,206 @@ export async function handler(args: Record<string, unknown>): Promise<{
 }
 
 /**
- * Analyze the project
+ * Analyze the project using Camouf core (with fallback)
  */
 async function analyzeProject(
+  projectRoot: string,
+  focus: string,
+  specificPath?: string
+): Promise<AnalysisResult> {
+  // Try core-based analysis first
+  try {
+    return await analyzeWithCore(projectRoot, focus, specificPath);
+  } catch {
+    // Fallback to lightweight fs-based analysis
+    return await analyzeWithFallback(projectRoot, focus, specificPath);
+  }
+}
+
+/**
+ * Core-based analysis using ProjectScanner + DependencyAnalyzer
+ */
+async function analyzeWithCore(
+  projectRoot: string,
+  focus: string,
+  specificPath?: string
+): Promise<AnalysisResult> {
+  // Load configuration
+  const configManager = new ConfigurationManager();
+  let config = await configManager.loadConfig(projectRoot);
+
+  if (!config) {
+    config = createDefaultConfig(projectRoot);
+  }
+
+  // Scan project and build real dependency graph
+  const scanner = new ProjectScanner(config);
+  const graph = await scanner.scan();
+  const fileContents = scanner.getFileContents();
+
+  // Run DependencyAnalyzer for deep metrics
+  const depAnalyzer = new DependencyAnalyzer(config);
+  const coreAnalysis = await depAnalyzer.analyze(graph, {
+    includeMetrics: true,
+    analyzeCoupling: true,
+  });
+
+  // Build structure info
+  const structure = buildStructureFromGraph(graph, config, fileContents);
+
+  // Build dependencies info from core analysis
+  const dependencies = buildDependenciesFromCore(graph, coreAnalysis, fileContents);
+
+  // Build types info
+  const types = (focus === 'all' || focus === 'types')
+    ? await analyzeTypes(fileContents)
+    : { interfaces: [], types: [], classes: [] };
+
+  // Build conventions info
+  const conventions = (focus === 'all' || focus === 'conventions')
+    ? analyzeConventions(fileContents)
+    : { namingStyle: 'unknown', exportStyle: 'unknown', importStyle: 'unknown' };
+
+  return {
+    projectRoot,
+    structure,
+    dependencies,
+    types,
+    conventions,
+    suggestions: coreAnalysis.suggestions,
+    analysisSource: 'core',
+  };
+}
+
+/**
+ * Build structure info from the real dependency graph
+ */
+function buildStructureFromGraph(
+  graph: ReturnType<ProjectScanner['getGraph']>,
+  config: CamoufConfig,
+  fileContents: Map<string, string>
+): AnalysisResult['structure'] {
+  const directories = new Set<string>();
+  const languages: Record<string, number> = {};
+
+  for (const nodeId of graph.nodes()) {
+    const node = graph.node(nodeId);
+    if (!node) continue;
+
+    const relPath = node.data?.relativePath || nodeId;
+    const dir = path.dirname(relPath);
+    if (dir !== '.') {
+      // Top-level directory
+      const topLevel = dir.split(/[/\\]/)[0];
+      directories.add(topLevel);
+    }
+
+    const lang = node.data?.language || 'unknown';
+    languages[lang] = (languages[lang] || 0) + 1;
+  }
+
+  // Layer info from config
+  const layers = config.layers.map(layer => {
+    const layerFiles = graph.nodes().filter(nodeId => {
+      const node = graph.node(nodeId);
+      const relPath = node?.data?.relativePath || nodeId;
+      return layer.directories.some(dir =>
+        relPath.replace(/\\/g, '/').startsWith(dir.replace(/\\/g, '/'))
+      );
+    });
+    return {
+      name: layer.name,
+      directories: layer.directories,
+      fileCount: layerFiles.length,
+    };
+  });
+
+  return {
+    directories: Array.from(directories).sort(),
+    fileCount: graph.nodeCount(),
+    languages,
+    layers,
+  };
+}
+
+/**
+ * Build dependencies info from core analysis results
+ */
+function buildDependenciesFromCore(
+  graph: ReturnType<ProjectScanner['getGraph']>,
+  coreAnalysis: { 
+    summary: { averageCoupling: number; maxCoupling: number; totalDependencies: number };
+    circularDependencies: Array<{ cycle: string[] }>;
+    hotspots: Array<{ file: string; dependents: number; dependencies: number }>;
+  },
+  fileContents: Map<string, string>
+): AnalysisResult['dependencies'] {
+  const external = new Set<string>();
+  const internal = new Set<string>();
+
+  // Extract imports from file contents for external/internal classification
+  for (const content of fileContents.values()) {
+    const imports = extractImports(content);
+    for (const imp of imports) {
+      if (imp.startsWith('.') || imp.startsWith('/')) {
+        internal.add(imp);
+      } else if (!imp.startsWith('@types/')) {
+        const pkgName = imp.startsWith('@')
+          ? imp.split('/').slice(0, 2).join('/')
+          : imp.split('/')[0];
+        external.add(pkgName);
+      }
+    }
+  }
+
+  return {
+    external: Array.from(external).sort(),
+    internal: Array.from(internal).slice(0, 20).sort(),
+    circularRisks: coreAnalysis.circularDependencies
+      .slice(0, 10)
+      .map(c => c.cycle.join(' → ')),
+    graphStats: {
+      totalNodes: graph.nodeCount(),
+      totalEdges: graph.edgeCount(),
+      averageCoupling: Math.round(coreAnalysis.summary.averageCoupling * 100) / 100,
+      maxCoupling: coreAnalysis.summary.maxCoupling,
+    },
+    hotspots: coreAnalysis.hotspots.slice(0, 10).map(h => ({
+      file: h.file,
+      dependents: h.dependents,
+      dependencies: h.dependencies,
+    })),
+  };
+}
+
+/**
+ * Create default config when none found
+ */
+function createDefaultConfig(projectRoot: string): CamoufConfig {
+  return {
+    name: 'camouf-mcp-analysis',
+    root: projectRoot,
+    languages: ['typescript', 'javascript'],
+    layers: [],
+    directories: {
+      client: ['src/client', 'src/components', 'src/pages', 'client', 'frontend'],
+      server: ['src/server', 'src/api', 'server', 'backend'],
+      shared: ['src/shared', 'src/common', 'shared', 'common'],
+    },
+    rules: {
+      builtin: {},
+    },
+    patterns: {
+      include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+      exclude: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+    },
+  };
+}
+
+/**
+ * Fallback analysis when core is not available (no config, parser errors, etc.)
+ */
+async function analyzeWithFallback(
   projectRoot: string,
   focus: string,
   specificPath?: string
@@ -128,11 +334,14 @@ async function analyzeProject(
       directories: [],
       fileCount: 0,
       languages: {},
+      layers: [],
     },
     dependencies: {
       external: [],
       internal: [],
       circularRisks: [],
+      graphStats: { totalNodes: 0, totalEdges: 0, averageCoupling: 0, maxCoupling: 0 },
+      hotspots: [],
     },
     types: {
       interfaces: [],
@@ -144,38 +353,36 @@ async function analyzeProject(
       exportStyle: 'unknown',
       importStyle: 'unknown',
     },
-    suggestions: [],
+    suggestions: ['No camouf.config.json found. Run `npx camouf init` for full analysis.'],
+    analysisSource: 'fallback',
   };
 
-  const targetPath = specificPath 
-    ? path.join(projectRoot, specificPath) 
+  const targetPath = specificPath
+    ? path.join(projectRoot, specificPath)
     : projectRoot;
 
-  // Collect file information
   const files = await collectFiles(targetPath, projectRoot);
 
-  // Analyze structure
   if (focus === 'all' || focus === 'structure') {
-    result.structure = analyzeStructure(files);
+    result.structure = { ...analyzeStructure(files), layers: [] };
   }
 
-  // Analyze dependencies
   if (focus === 'all' || focus === 'dependencies') {
-    result.dependencies = await analyzeDependencies(files);
+    const deps = await analyzeFallbackDependencies(files);
+    result.dependencies = {
+      ...deps,
+      graphStats: { totalNodes: files.size, totalEdges: 0, averageCoupling: 0, maxCoupling: 0 },
+      hotspots: [],
+    };
   }
 
-  // Analyze types
   if (focus === 'all' || focus === 'types') {
     result.types = await analyzeTypes(files);
   }
 
-  // Analyze conventions
   if (focus === 'all' || focus === 'conventions') {
     result.conventions = analyzeConventions(files);
   }
-
-  // Generate suggestions
-  result.suggestions = generateSuggestions(result);
 
   return result;
 }
@@ -234,9 +441,9 @@ async function collectFiles(
 }
 
 /**
- * Analyze project structure
+ * Analyze project structure (fallback)
  */
-function analyzeStructure(files: Map<string, string>): AnalysisResult['structure'] {
+function analyzeStructure(files: Map<string, string>): Omit<AnalysisResult['structure'], 'layers'> {
   const directories = new Set<string>();
   const languages: Record<string, number> = {};
 
@@ -259,9 +466,13 @@ function analyzeStructure(files: Map<string, string>): AnalysisResult['structure
 }
 
 /**
- * Analyze dependencies
+ * Analyze dependencies (fallback)
  */
-async function analyzeDependencies(files: Map<string, string>): Promise<AnalysisResult['dependencies']> {
+async function analyzeFallbackDependencies(files: Map<string, string>): Promise<{
+  external: string[];
+  internal: string[];
+  circularRisks: string[];
+}> {
   const external = new Set<string>();
   const internal = new Set<string>();
   const importGraph = new Map<string, Set<string>>();
@@ -312,7 +523,7 @@ async function analyzeDependencies(files: Map<string, string>): Promise<Analysis
 }
 
 /**
- * Analyze types
+ * Analyze types (shared between core and fallback)
  */
 async function analyzeTypes(files: Map<string, string>): Promise<AnalysisResult['types']> {
   const interfaces: string[] = [];
@@ -348,7 +559,7 @@ async function analyzeTypes(files: Map<string, string>): Promise<AnalysisResult[
 }
 
 /**
- * Analyze naming conventions
+ * Analyze naming conventions (shared between core and fallback)
  */
 function analyzeConventions(files: Map<string, string>): AnalysisResult['conventions'] {
   let camelCaseCount = 0;
@@ -400,33 +611,7 @@ function analyzeConventions(files: Map<string, string>): AnalysisResult['convent
 }
 
 /**
- * Generate suggestions based on analysis
- */
-function generateSuggestions(result: AnalysisResult): string[] {
-  const suggestions: string[] = [];
-
-  if (result.dependencies.circularRisks.length > 0) {
-    suggestions.push('Consider refactoring to eliminate circular dependencies');
-  }
-
-  if (result.conventions.exportStyle === 'named') {
-    suggestions.push('Use named exports for new modules');
-  }
-
-  if (result.conventions.namingStyle === 'camelCase') {
-    suggestions.push('Use camelCase for functions and variables');
-    suggestions.push('Use PascalCase for classes, interfaces, and types');
-  }
-
-  if (result.structure.directories.includes('src')) {
-    suggestions.push('Place new code in the src/ directory');
-  }
-
-  return suggestions;
-}
-
-/**
- * Extract imports from code
+ * Extract imports from code (shared)
  */
 function extractImports(code: string): string[] {
   const imports: string[] = [];

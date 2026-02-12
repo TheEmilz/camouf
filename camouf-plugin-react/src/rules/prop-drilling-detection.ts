@@ -10,7 +10,8 @@
  * - Same prop name appearing in deeply nested component chains
  */
 
-import { IRule, RuleContext, RuleResult, RuleConfig, Violation, GraphNode } from '../types.js';
+import type { IRule, RuleContext, RuleResult, RuleConfig } from 'camouf/rules';
+import type { Violation, GraphNode } from 'camouf';
 import * as path from 'path';
 
 interface PropDrillingConfig extends RuleConfig {

@@ -25,6 +25,8 @@ import {
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
   ErrorCode,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -33,11 +35,13 @@ import { validateTool } from './tools/validate.js';
 import { analyzeTool } from './tools/analyze.js';
 import { suggestFixTool } from './tools/fix.js';
 import { rulesResource } from './resources/rules.js';
+import { configResource } from './resources/config.js';
+import { promptDefinitions, getPrompt } from './prompts/index.js';
 
 /**
  * MCP Server version
  */
-const VERSION = '1.0.0';
+const VERSION = '0.8.0';
 
 /**
  * Create and configure the MCP server
@@ -52,6 +56,7 @@ export function createMcpServer(): Server {
       capabilities: {
         tools: {},
         resources: {},
+        prompts: {},
       },
     }
   );
@@ -106,7 +111,10 @@ export function createMcpServer(): Server {
   // Register resource handlers
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     return {
-      resources: [rulesResource.definition],
+      resources: [
+        rulesResource.definition,
+        configResource.definition,
+      ],
     };
   });
 
@@ -117,12 +125,28 @@ export function createMcpServer(): Server {
       case 'camouf://rules':
         return await rulesResource.handler();
 
+      case 'camouf://config':
+        return await configResource.handler();
+
       default:
         throw new McpError(
           ErrorCode.InvalidRequest,
           `Unknown resource: ${uri}`
         );
     }
+  });
+
+  // Register prompt handlers
+  server.setRequestHandler(ListPromptsRequestSchema, async () => {
+    return {
+      prompts: promptDefinitions,
+    };
+  });
+
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    const result = getPrompt(name, args);
+    return result;
   });
 
   return server;
@@ -150,4 +174,4 @@ export async function startMcpServer(): Promise<void> {
 }
 
 // Export for CLI integration
-export { validateTool, analyzeTool, suggestFixTool, rulesResource };
+export { validateTool, analyzeTool, suggestFixTool, rulesResource, configResource };

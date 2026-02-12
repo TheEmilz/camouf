@@ -7,13 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.1] - 2026-02-09
+---
+
+## camouf [0.8.0] - 2026-02-12
+
+### Added
+- **Package Exports** — `exports` field in `package.json` with 5 entry points: `.`, `./types`, `./rules`, `./plugin`, `./testing`. Created `src/index.ts` barrel export with all public types for plugin authors
+- **MCP Analyze Core Integration** — `camouf_analyze` MCP tool now uses real `ProjectScanner` and `DependencyAnalyzer` instead of `fs.readdir` fallback. Returns real dependency graph, layer detection, coupling metrics, and hotspots
+- **Dynamic MCP Rules Resource** — `camouf://rules` resource now generated at runtime from `RuleEngine.getRules()`. Reflects config changes, plugin rules, enabled/disabled state. Replaces hardcoded 18-rule array
+- **MCP Config Resource** — New `camouf://config` resource exposes active project configuration (name, languages, layers, rules, patterns) to AI agents
+- **MCP Prompts** — 4 prompts teaching AI agents how to use Camouf:
+  - `before-writing-code` — Analyze project architecture before generating code
+  - `after-generating-code` — Validate and fix loop (max 3 iterations)
+  - `understanding-violations` — Interpret severity levels and common AI violations
+  - `project-conventions` — Discover active rules, layers, naming conventions
+- **Plugin Scaffolding** — `camouf init --plugin` generates complete plugin project with package.json, tsconfig, entry point, rule template, and README. Supports `--yes` for non-interactive defaults
+- **Testing Utilities** — `createRuleTestContext()` helper exported via `camouf/testing`. Builds a full `RuleContext` (graphlib graph, file contents, node/edge data) from a simple file map — no real project needed
+
+### Changed
+- MCP server now declares `prompts` capability alongside `tools` and `resources`
+- `src/mcp/index.ts` exports `configResource` and registers prompts handlers
+
+## camouf-plugin-react [0.2.0] - 2026-02-12
+
+### Changed
+- **Import from `camouf` package** — All types (`IRule`, `RuleContext`, `Violation`, `CamoufPlugin`, etc.) now imported from `camouf/rules` and `camouf` instead of local duplicate `types.ts`. Eliminates 174 lines of duplicated type definitions and prevents future drift
+- Fixed `metadata.version` mismatch (`0.1.2` → `0.2.0` to match package.json)
+- Updated `peerDependencies` from `>=0.4.0` to `>=0.7.0`
+- Updated `camoufVersion` in plugin metadata from `>=0.4.0` to `>=0.7.0`
+
+### Removed
+- `src/types.ts` — Replaced by direct imports from `camouf` package exports
+
+---
+
+## camouf [0.7.1] - 2026-02-09
 
 ### Changed
 - Add npm downloads badge to README
 - Update ASCII banner version to v0.7.0
 
-## [0.7.0] - 2026-02-09
+## camouf [0.7.0] - 2026-02-09
 
 ### Fixed
 - **Dramatically reduced false positives in `function-signature-matching`** — The rule was confusing field access on callback parameters (`node.data` from ReactFlow, `event.metaKey` from DOM, `item.dataKey` from Recharts, etc.) with internal API type field mismatches
@@ -37,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `isBuiltinObjectAccess` now uses `Set` instead of arrays for O(1) lookups (performance improvement on large codebases)
 - External import detection now also tracks library names for context-aware analysis
 
-## [0.6.2] - 2026-02-09
+## camouf [0.6.2] - 2026-02-09
 
 ### Fixed
 - **Dramatically reduced false positives in `function-signature-matching` type field checks** - The rule was incorrectly flagging field access on external library objects (ReactFlow `node.data`, DOM `event.metaKey`, Recharts `payload.payload`, etc.) as type mismatches against internal API schemas
@@ -69,7 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 }
 ```
 
-## [0.6.1] - 2026-02-09
+## camouf [0.6.1] - 2026-02-09
 
 ### Added
 - **Scan Progress Reporting** - Real-time progress feedback during project scanning for large codebases
@@ -79,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CI mode emits progress via debug logs (no ANSI escape codes)
   - Applied to `validate`, `analyze`, and `watch` commands
 
-## [0.6.0] - 2026-02-09
+## camouf [0.6.0] - 2026-02-09
 
 ### Added
 - **Redesigned CLI Help** - Rich interactive help with ASCII banner, grouped commands, inline options, examples, available rules list, and docs links
@@ -98,7 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `test-fixtures/camouf.config.json` with proper layer definitions and 10 enabled rules
 - Removed duplicated Commands section from README (replaced with CLI Reference link)
 
-## [0.5.0] - 2025-02-07
+## camouf [0.5.0] - 2025-02-07
 
 ### Added
 - **5 New AI-Specific Rules** - Purpose-built to catch AI coding assistant mistakes:
@@ -114,13 +148,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compatible with Claude Desktop, Cursor, and other MCP-enabled agents
   - See README for configuration examples
 
-- **Official Plugin: camouf-plugin-react** - Published to npm:
-  - 4 React-specific rules for AI-generated code
-  - `missing-dependency-array` - useEffect/useMemo/useCallback dependency issues
-  - `inconsistent-component-naming` - PascalCase enforcement for components
-  - `prop-drilling-detection` - Excessive prop passing through component trees
-  - `stale-closure-patterns` - Stale closures in hooks
-
 - **Test Fixtures** - Example files in `test-fixtures/ai-errors/` demonstrating all AI rules
 
 ### Changed
@@ -128,12 +155,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Camouf now positioned as "Architecture Guardrails for AI-Generated Code"
 - Total built-in rules: 18 (13 architecture + 5 AI-specific)
 
-## [0.4.1] - 2025-02-06
+## camouf-plugin-react [0.1.0] - 2025-02-07
+
+### Added
+- **Initial release** — Published to npm as official React plugin for Camouf
+- 4 React-specific rules for AI-generated code:
+  - `react/missing-dependency-array` — useEffect/useMemo/useCallback dependency issues
+  - `react/inconsistent-component-naming` — PascalCase enforcement for components
+  - `react/prop-drilling-detection` — Excessive prop passing through component trees
+  - `react/stale-closure-patterns` — Stale closures in hooks
+
+## camouf [0.4.1] - 2025-02-06
 
 ### Changed
 - README diagrams are now clickable for full-size view
 
-## [0.4.0] - 2026-02-06
+## camouf [0.4.0] - 2026-02-06
 
 ### Added
 - **Function Signature Matching Rule**: New `function-signature-matching` rule that detects AI-generated code mismatches
@@ -156,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Validation exit code now correctly returns 1 when violations are found
 - Report command properly passes file contents for signature analysis
 
-## [0.3.2] - 2026-02-06
+## camouf [0.3.2] - 2026-02-06
 
 ### Added
 - `camouf.js` entry point shim so `node camouf.js` works as fallback when agents guess the entry point
@@ -165,13 +202,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent templates (CLAUDE.md, AGENTS.md, slash commands) now explicitly instruct to use `npx camouf` and warn against `node camouf.js` or bare `camouf`
 - Prevents agents from guessing wrong invocation method
 
-## [0.3.1] - 2026-02-06
+## camouf [0.3.1] - 2026-02-06
 
 ### Fixed
 - `camouf init --agent <type>` now implies `--yes` (non-interactive mode) so AI agents don't hang on interactive prompts
 - Previously required `--yes` flag in addition to `--agent`, which broke agent workflows
 
-## [0.3.0] - 2026-02-04
+## camouf [0.3.0] - 2026-02-04
 
 ### Added
 - **AI Agent Integration** — Native support for CLI coding agents
@@ -193,12 +230,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `src/cli/version.ts` with correct metadata (homepage, author, license)
 - Updated SARIF reporter with correct version and URL
 
-## [0.2.6] - 2026-02-04
+## camouf [0.2.6] - 2026-02-04
 
 ### Changed
 - README updated with Epixiom link
 
-## [0.2.4] - 2026-02-04
+## camouf [0.2.4] - 2026-02-04
 
 ### Added
 - **VS Code Problems panel integration**
@@ -221,7 +258,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Vercel/Netlify tokens
   - Railway tokens
 
-## [0.2.3] - 2026-02-04
+## camouf [0.2.3] - 2026-02-04
 
 ### Improved
 - Smart directory detection during `camouf init`
@@ -231,13 +268,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Detects shared types, utilities, and common code patterns
   - Falls back to intelligent heuristics when content analysis is inconclusive
 
-## [0.2.2] - 2026-02-04
+## camouf [0.2.2] - 2026-02-04
 
 ### Fixed
 - Fixed `camouf init` command failing with "Configuration already exists" error even when no config file exists
   - The `configExists()` method was using async `fs.access` without await, causing false positives
 
-## [0.2.1] - 2026-02-04
+## camouf [0.2.1] - 2026-02-04
 
 ### Added
 - New `contract-mismatch` rule for API contract validation
@@ -252,7 +289,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Total built-in rules increased from 11 to 12
 
-## [0.2.0] - 2026-02-04
+## camouf [0.2.0] - 2026-02-04
 
 ### Added
 - New `hardcoded-secrets` rule for detecting sensitive values in source code
@@ -268,7 +305,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Total built-in rules increased from 10 to 11
 
-## [0.1.4] - 2026-02-04
+## camouf [0.1.4] - 2026-02-04
 
 ### Changed
 - Updated dependencies to latest major versions:
@@ -284,25 +321,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - ESLint errors with unnecessary regex escapes
 
-## [0.1.3] - 2026-02-04
+## camouf [0.1.3] - 2026-02-04
 
 ### Changed
 - Updated package.json with correct GitHub repository URLs
 - Repository now linked to https://github.com/TheEmilz/camouf
 
-## [0.1.2] - 2026-02-04
+## camouf [0.1.2] - 2026-02-04
 
 ### Changed
 - Made README more professional (removed emojis)
 - Improved documentation clarity
 
-## [0.1.1] - 2026-02-04
+## camouf [0.1.1] - 2026-02-04
 
 ### Changed
 - Changed license from MIT to Apache 2.0 for better patent protection
 - Added NOTICE file for Apache 2.0 compliance
 
-## [0.1.0] - 2026-02-04
+## camouf [0.1.0] - 2026-02-04
 
 ### Added
 - Initial release of Camouf

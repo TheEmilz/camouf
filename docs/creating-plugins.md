@@ -28,20 +28,34 @@ Camouf's plugin system is designed around a simple principle: **plugins export c
 
 ## Quick Start
 
-### 1. Create Package Structure
+The fastest way to create a plugin:
+
+```bash
+npx camouf init --plugin
+```
+
+This generates the complete structure with prompts for name, description, and first rule ID. Use `--yes` for defaults:
+
+```bash
+npx camouf init --plugin --yes
+```
+
+### Generated Structure
 
 ```
-camouf-plugin-myframework/
-├── package.json
-├── src/
-│   ├── index.ts
-│   └── rules/
-│       └── my-rule.ts
+camouf-plugin-{name}/
+├── package.json          # With peerDependency on camouf
 ├── tsconfig.json
-└── README.md
+├── README.md
+└── src/
+    ├── index.ts          # Plugin entry with CamoufPlugin export
+    └── rules/
+        └── {rule-id}.ts  # Rule template implementing IRule
 ```
 
-### 2. Define Package.json
+### Manual Setup
+
+If you prefer to set up manually:
 
 ```json
 {
@@ -52,10 +66,10 @@ camouf-plugin-myframework/
   "types": "dist/index.d.ts",
   "keywords": ["camouf", "camouf-plugin", "architecture", "myframework"],
   "peerDependencies": {
-    "camouf": "^1.0.0"
+    "camouf": ">=0.7.0"
   },
   "devDependencies": {
-    "camouf": "^1.0.0",
+    "camouf": "^0.7.1",
     "typescript": "^5.0.0"
   }
 }
@@ -65,7 +79,7 @@ camouf-plugin-myframework/
 
 ```typescript
 // src/index.ts
-import { CamoufPlugin } from 'camouf';
+import type { CamoufPlugin } from 'camouf';
 import { myRule } from './rules/my-rule.js';
 
 const plugin: CamoufPlugin = {
@@ -90,14 +104,15 @@ export default plugin;
 Adds custom architecture rules.
 
 ```typescript
-import { IRule, RuleContext, RuleResult, BaseRule } from 'camouf';
+import type { IRule, RuleContext, RuleResult } from 'camouf/rules';
+import type { Violation } from 'camouf';
 
-export class NoGlobalStateRule extends BaseRule {
+export class NoGlobalStateRule implements IRule {
   readonly id = 'no-global-state';
   readonly name = 'No Global State';
   readonly description = 'Prevents global state in components';
-  readonly category = 'best-practices';
-  readonly defaultSeverity = 'error';
+  readonly category = 'best-practices' as const;
+  readonly severity = 'error' as const;
 
   async check(context: RuleContext): Promise<RuleResult> {
     const violations = [];
@@ -106,14 +121,17 @@ export class NoGlobalStateRule extends BaseRule {
       const node = context.getNodeData(nodeId);
       if (!node) continue;
       
-      // Check for global state patterns
-      const content = context.fileContents?.get(node.path);
+      const content = context.fileContents?.get(nodeId);
       if (content?.includes('window.globalState')) {
-        violations.push(this.createViolation(
-          node.path,
-          'Global state detected. Use context or state management instead.',
-          { suggestion: 'Replace with React Context or Redux' }
-        ));
+        violations.push({
+          id: `global-state-${nodeId}`,
+          ruleId: this.id,
+          ruleName: this.name,
+          severity: this.severity,
+          message: 'Global state detected. Use context or state management instead.',
+          file: nodeId,
+          suggestion: 'Replace with React Context or Redux',
+        });
       }
     }
     
@@ -321,42 +339,73 @@ async onLoad(context: PluginLoadContext) {
 
 ## Testing Plugins
 
+Use `createRuleTestContext` to test rules without a real project on disk:
+
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { RuleEngine } from 'camouf';
-import myPlugin from '../src/index.js';
+import { createRuleTestContext } from 'camouf/testing';
+import { NoGlobalStateRule } from '../src/rules/no-global-state.js';
 
-describe('my-plugin', () => {
-  it('should detect violations', async () => {
-    const config = {
-      root: './test-fixtures',
-      plugins: [myPlugin],
-      // ... other config
-    };
-    
-    const engine = new RuleEngine(config);
-    await engine.initializePlugins('./test-fixtures');
-    
-    const violations = await engine.validate(graph);
-    expect(violations).toHaveLength(1);
-    expect(violations[0].ruleId).toBe('my-rule');
+describe('no-global-state', () => {
+  const rule = new NoGlobalStateRule();
+
+  it('should detect global state usage', async () => {
+    const context = createRuleTestContext({
+      files: {
+        'client/app.ts': 'window.globalState = { user: null };',
+        'client/clean.ts': 'const state = useContext(AppContext);',
+      },
+    });
+
+    const result = await rule.check(context);
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0].file).toBe('client/app.ts');
+  });
+
+  it('should pass for clean code', async () => {
+    const context = createRuleTestContext({
+      files: {
+        'client/app.ts': 'import { useStore } from "./store";',
+      },
+    });
+
+    const result = await rule.check(context);
+    expect(result.violations).toHaveLength(0);
+  });
+
+  it('supports config overrides', async () => {
+    const context = createRuleTestContext({
+      files: { 'src/main.ts': 'window.globalState = {}' },
+      config: {
+        name: 'test',
+        rules: { builtin: { 'no-global-state': 'error' } },
+      },
+    });
+
+    const result = await rule.check(context);
+    expect(result.violations).toHaveLength(1);
   });
 });
 ```
+
+`createRuleTestContext` automatically:
+- Builds a graphlib dependency graph from the file map
+- Auto-discovers imports to create edges
+- Infers language and layer from file paths
+- Provides all `RuleContext` methods (`getNodeData`, `getEdgeData`, `getIncomingEdges`, `getOutgoingEdges`)
+- Applies sensible config defaults (4 layers, TypeScript patterns)
 
 ## Publishing
 
 1. **Naming**: Use the `camouf-plugin-*` prefix for npm discoverability
 2. **Keywords**: Include `camouf`, `camouf-plugin` in package.json keywords
-3. **Peer Dependencies**: Declare `camouf` as a peer dependency
+3. **Peer Dependencies**: Declare `camouf` as a peer dependency (`>=0.7.0`)
 4. **Types**: Export TypeScript declarations for rule configuration
 
 ```json
 {
   "keywords": ["camouf", "camouf-plugin", "architecture", "linting"],
-  "peerDependencies": {
-    "camouf": ">=1.0.0"
-  }
+  \"peerDependencies\": {\n    \"camouf\": \">=0.7.0\"\n  }", "oldString": "  \"peerDependencies\": {\n    \"camouf\": \">=1.0.0\"\n  }
 }
 ```
 

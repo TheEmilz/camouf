@@ -23,7 +23,14 @@ export const initCommand = new Command('init')
   .option('-f, --force', 'Overwrite existing configuration')
   .option('--template <template>', 'Use a predefined template (monorepo, microservices, fullstack)')
   .option('--agent <type>', 'Generate agent integration files (claude, codex, all)')
+  .option('--plugin', 'Scaffold a new Camouf plugin project')
   .action(async (options) => {
+    // Plugin scaffolding is a separate path
+    if (options.plugin) {
+      await scaffoldPlugin(options);
+      return;
+    }
+
     const spinner = ora('Detecting project structure...').start();
 
     try {
@@ -282,4 +289,265 @@ async function createVSCodeIntegration(projectRoot: string): Promise<void> {
   };
 
   fs.writeFileSync(settingsPath, JSON.stringify(camoufSettings, null, 2));
+}
+
+/**
+ * Scaffold a new Camouf plugin project
+ */
+async function scaffoldPlugin(options: { yes?: boolean; force?: boolean }): Promise<void> {
+  let pluginName: string;
+  let pluginDescription: string;
+  let ruleId: string;
+
+  if (options.yes) {
+    pluginName = 'my-plugin';
+    pluginDescription = 'A custom Camouf plugin';
+    ruleId = 'my-custom-rule';
+  } else {
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'name',
+        message: 'Plugin name (without camouf-plugin- prefix):',
+        default: 'my-plugin',
+        validate: (input: string) => {
+          if (/^[a-z0-9-]+$/.test(input)) return true;
+          return 'Use lowercase letters, numbers, and hyphens only';
+        },
+      },
+      {
+        type: 'input',
+        name: 'description',
+        message: 'Plugin description:',
+        default: 'A custom Camouf plugin',
+      },
+      {
+        type: 'input',
+        name: 'ruleId',
+        message: 'First rule ID (e.g., no-global-state):',
+        default: 'my-custom-rule',
+        validate: (input: string) => {
+          if (/^[a-z0-9-]+$/.test(input)) return true;
+          return 'Use lowercase letters, numbers, and hyphens only';
+        },
+      },
+    ]);
+
+    pluginName = answers.name;
+    pluginDescription = answers.description;
+    ruleId = answers.ruleId;
+  }
+
+  const dirName = `camouf-plugin-${pluginName}`;
+  const dirPath = path.join(process.cwd(), dirName);
+
+  if (fs.existsSync(dirPath) && !options.force) {
+    Logger.error(`Directory ${dirName} already exists. Use --force to overwrite.`);
+    process.exit(1);
+  }
+
+  const spinner = ora(`Scaffolding ${dirName}...`).start();
+
+  try {
+    // Create directory structure
+    fs.mkdirSync(path.join(dirPath, 'src', 'rules'), { recursive: true });
+
+    // Convert rule-id to PascalCase class name
+    const className = ruleId
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('') + 'Rule';
+
+    // package.json
+    const packageJson = {
+      name: `camouf-plugin-${pluginName}`,
+      version: '0.1.0',
+      description: pluginDescription,
+      type: 'module',
+      main: 'dist/index.js',
+      types: 'dist/index.d.ts',
+      scripts: {
+        build: 'tsc',
+        dev: 'tsc -w',
+        prepublishOnly: 'npm run build',
+      },
+      keywords: ['camouf', 'camouf-plugin', 'architecture', 'static-analysis'],
+      license: 'MIT',
+      peerDependencies: {
+        camouf: '>=0.8.0',
+      },
+      devDependencies: {
+        camouf: '^0.8.0',
+        typescript: '^5.3.0',
+      },
+      files: ['dist', 'README.md'],
+    };
+
+    // tsconfig.json
+    const tsconfig = {
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        outDir: './dist',
+        rootDir: './src',
+        strict: true,
+        declaration: true,
+        declarationMap: true,
+        sourceMap: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+      },
+      include: ['src/**/*'],
+      exclude: ['node_modules', 'dist'],
+    };
+
+    // src/index.ts — plugin entry
+    const indexTs = `/**
+ * Camouf Plugin: ${pluginName}
+ * 
+ * ${pluginDescription}
+ */
+
+import type { CamoufPlugin } from 'camouf';
+import { ${className} } from './rules/${ruleId}.js';
+
+const plugin: CamoufPlugin = {
+  metadata: {
+    name: 'camouf-plugin-${pluginName}',
+    version: '0.1.0',
+    description: '${pluginDescription}',
+    author: '',
+    camoufVersion: '>=0.8.0',
+  },
+  rules: [new ${className}()],
+};
+
+export default plugin;
+`;
+
+    // src/rules/{ruleId}.ts — example rule
+    const ruleTs = `/**
+ * Rule: ${ruleId}
+ * 
+ * TODO: Describe what this rule checks for.
+ */
+
+import type { IRule, RuleContext, RuleResult } from 'camouf/rules';
+import type { Violation } from 'camouf';
+
+export class ${className} implements IRule {
+  readonly id = '${ruleId}';
+  readonly name = '${className.replace(/Rule$/, '').replace(/([A-Z])/g, ' $1').trim()}';
+  readonly description = 'TODO: Describe what this rule checks for';
+  readonly severity = 'warning' as const;
+  readonly tags = ['custom'];
+  readonly category = 'custom' as const;
+
+  async check(context: RuleContext): Promise<RuleResult> {
+    const violations: Violation[] = [];
+
+    for (const nodeId of context.graph.nodes()) {
+      const node = context.getNodeData(nodeId);
+      if (!node) continue;
+
+      const filePath = node.data?.relativePath || nodeId;
+      const content = context.fileContents?.get(filePath);
+      if (!content) continue;
+
+      // TODO: Implement your rule logic here
+      // Example: detect a pattern in the file content
+      //
+      // if (content.includes('some-pattern')) {
+      //   violations.push({
+      //     id: \`\${this.id}-\${Date.now()}\`,
+      //     ruleId: this.id,
+      //     ruleName: this.name,
+      //     severity: this.severity,
+      //     message: 'Description of the violation',
+      //     file: filePath,
+      //     suggestion: 'How to fix it',
+      //   });
+      // }
+    }
+
+    return { violations };
+  }
+}
+`;
+
+    // README.md
+    const readme = `# camouf-plugin-${pluginName}
+
+${pluginDescription}
+
+## Installation
+
+\`\`\`bash
+npm install camouf-plugin-${pluginName}
+\`\`\`
+
+## Configuration
+
+Add to your \`camouf.config.json\`:
+
+\`\`\`json
+{
+  "plugins": [
+    {
+      "name": "camouf-plugin-${pluginName}",
+      "enabled": true
+    }
+  ]
+}
+\`\`\`
+
+## Rules
+
+| Rule | Severity | Description |
+|------|----------|-------------|
+| \`${ruleId}\` | warning | TODO: Describe the rule |
+
+## Development
+
+\`\`\`bash
+npm run build    # Compile TypeScript
+npm run dev      # Watch mode
+\`\`\`
+
+## License
+
+MIT
+`;
+
+    // Write all files
+    fs.writeFileSync(path.join(dirPath, 'package.json'), JSON.stringify(packageJson, null, 2));
+    fs.writeFileSync(path.join(dirPath, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2));
+    fs.writeFileSync(path.join(dirPath, 'src', 'index.ts'), indexTs);
+    fs.writeFileSync(path.join(dirPath, 'src', 'rules', `${ruleId}.ts`), ruleTs);
+    fs.writeFileSync(path.join(dirPath, 'README.md'), readme);
+
+    spinner.succeed(`Plugin scaffolded: ${dirName}/`);
+
+    Logger.success('\n✨ Plugin created successfully!');
+    Logger.info('\nStructure:');
+    Logger.info(`  ${dirName}/`);
+    Logger.info(`  ├── package.json`);
+    Logger.info(`  ├── tsconfig.json`);
+    Logger.info(`  ├── README.md`);
+    Logger.info(`  └── src/`);
+    Logger.info(`      ├── index.ts`);
+    Logger.info(`      └── rules/`);
+    Logger.info(`          └── ${ruleId}.ts`);
+    Logger.info('\nNext steps:');
+    Logger.info(`  1. cd ${dirName}`);
+    Logger.info(`  2. npm install`);
+    Logger.info(`  3. Edit src/rules/${ruleId}.ts with your rule logic`);
+    Logger.info(`  4. npm run build`);
+    Logger.info(`  5. Add the plugin to your project's camouf.config.json\n`);
+
+  } catch (error) {
+    spinner.fail(`Scaffolding failed: ${(error as Error).message}`);
+    process.exit(1);
+  }
 }

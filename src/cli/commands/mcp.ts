@@ -19,8 +19,9 @@ export const mcpCommand = new Command('mcp')
       
       if (options.verbose) {
         Logger.info('Starting Camouf MCP Server...');
-        Logger.info('Tools available: camouf_validate, camouf_analyze, camouf_suggest_fix');
-        Logger.info('Resources available: camouf://rules');
+        Logger.info('Tools: camouf_validate, camouf_analyze, camouf_suggest_fix');
+        Logger.info('Resources: camouf://rules, camouf://config');
+        Logger.info('Prompts: before-writing-code, after-generating-code, understanding-violations, project-conventions');
       }
 
       await startMcpServer();
