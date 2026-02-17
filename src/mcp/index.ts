@@ -41,7 +41,7 @@ import { promptDefinitions, getPrompt } from './prompts/index.js';
 /**
  * MCP Server version
  */
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 
 /**
  * Create and configure the MCP server

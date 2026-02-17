@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## camouf [0.9.0] - 2026-02-17
+
+### Added
+- **MCP Agent Tutorial** -- New comprehensive guide at `docs/mcp-agent-tutorial.md` covering setup, real-time streaming, multi-agent collaboration, and the validate-fix-revalidate loop with Claude CLI, Cursor, and other MCP-compatible agents
+- **MCP `function-signature-matching` fix guidance** -- `camouf_suggest_fix` now returns specific step-by-step instructions for function-signature-matching violations, including function-name, parameter-name, and parameter-count mismatches. Previously only had a generic fallback
+- **Demo scenario** -- `test-fixtures/demo/` with an e-commerce order system (shared types, client service, server controller) demonstrating typical AI naming drift and parameter-count mismatches across layers
+
+### Changed
+- README now links to the MCP Agent Tutorial from both the MCP section and the documentation list
+
+### Removed
+- Removed redundant `test-fixtures/camouf.config.json` (each test fixture directory has its own config)
+
+---
+
 ## camouf [0.8.0] - 2026-02-12
 
 ### Added

@@ -1,0 +1,44 @@
+{
+  "name": "demo-ecommerce",
+  "root": ".",
+  "languages": ["typescript"],
+  "layers": [
+    {
+      "name": "shared",
+      "type": "shared",
+      "directories": ["shared"],
+      "allowedDependencies": []
+    },
+    {
+      "name": "client",
+      "type": "presentation",
+      "directories": ["client"],
+      "allowedDependencies": ["shared"]
+    },
+    {
+      "name": "server",
+      "type": "application",
+      "directories": ["server"],
+      "allowedDependencies": ["shared"]
+    }
+  ],
+  "directories": {
+    "shared": ["shared"],
+    "client": ["client"],
+    "server": ["server"]
+  },
+  "rules": {
+    "builtin": {
+      "function-signature-matching": "error",
+      "ai-hallucinated-imports": "error",
+      "orphaned-functions": "warn",
+      "inconsistent-casing": "warn",
+      "phantom-type-references": "warn",
+      "context-drift-patterns": "warn"
+    }
+  },
+  "patterns": {
+    "include": ["**/*.ts"],
+    "exclude": ["**/node_modules/**", "**/dist/**"]
+  }
+}

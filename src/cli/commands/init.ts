@@ -374,10 +374,10 @@ async function scaffoldPlugin(options: { yes?: boolean; force?: boolean }): Prom
       keywords: ['camouf', 'camouf-plugin', 'architecture', 'static-analysis'],
       license: 'MIT',
       peerDependencies: {
-        camouf: '>=0.8.0',
+        camouf: '>=0.9.0',
       },
       devDependencies: {
-        camouf: '^0.8.0',
+        camouf: '^0.9.0',
         typescript: '^5.3.0',
       },
       files: ['dist', 'README.md'],
@@ -418,7 +418,7 @@ const plugin: CamoufPlugin = {
     version: '0.1.0',
     description: '${pluginDescription}',
     author: '',
-    camoufVersion: '>=0.8.0',
+    camoufVersion: '>=0.9.0',
   },
   rules: [new ${className}()],
 };

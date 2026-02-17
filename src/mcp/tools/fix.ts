@@ -186,6 +186,26 @@ function getRuleSpecificFix(ruleId: string): {
       prevention: 'When generating new code, first query existing types with similar purpose. Reuse established naming.',
     },
 
+    'function-signature-matching': {
+      fixType: 'code_change',
+      priority: 'high',
+      defaultDescription: 'Fix function name, parameter names, or parameter count to match shared contract',
+      steps: [
+        'Read the canonical function signature from the shared/types directory',
+        'For function-name mismatches: rename the function to match the shared contract exactly',
+        'For parameter-name mismatches: rename the parameter to match',
+        'For parameter-count mismatches: add the missing parameters with appropriate values from context',
+        'Update all call sites that reference the renamed function/parameter',
+        'Re-validate with camouf_validate to confirm the fix',
+      ],
+      alternatives: [
+        { description: 'If the shared contract is wrong, update the shared type instead and make all implementations match' },
+        { description: 'For parameter-count mismatch, make the extra parameter optional in the shared contract if it is truly optional' },
+      ],
+      explanation: 'AI agents with limited context windows often remember function names approximately but not exactly. This causes runtime errors when the client calls getUser() but the server defined getUserById(). Parameter count mismatches (e.g., cancelOrder(id) vs cancelOrder(id, reason)) mean the caller is not providing all required data.',
+      prevention: 'Before calling or implementing any function, read the shared contract file. Use camouf_analyze with focus="types" to see all canonical signatures. Copy the exact name and full parameter list.',
+    },
+
     'phantom-type-references': {
       fixType: 'code_change',
       priority: 'high',

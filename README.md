@@ -306,6 +306,8 @@ npm install --save-dev camouf-plugin-react
 
 Camouf exposes an **MCP (Model Context Protocol) server** that allows AI agents like Claude, Cursor, and Copilot to validate their own code **before proposing it to you**.
 
+> **Full tutorial:** [Using Camouf with AI Agents (MCP Tutorial)](docs/mcp-agent-tutorial.md) -- setup, real-time streaming, multi-agent collaboration, and the validate-fix-revalidate loop.
+
 ### Start MCP Server
 
 ```bash
@@ -370,6 +372,7 @@ This creates a **feedback loop** where AI catches its own mistakes before you se
 - [Getting Started](docs/getting-started.md)
 - [Creating Plugins](docs/creating-plugins.md)
 - [AI Agent Challenges](docs/ai-agent-challenges.md)
+- [MCP Agent Tutorial](docs/mcp-agent-tutorial.md)
 - [Configuring Rules](docs/configuring-rules.md)
 - [CI/CD Integration](docs/ci-cd-integration.md)
 - [Changelog](CHANGELOG.md)
