@@ -157,7 +157,7 @@ Running `npx camouf` or `npx camouf help` displays the full interactive help:
  ██║     ███████║██╔████╔██║██║   ██║██║   ██║█████╗
  ██║     ██╔══██║██║╚██╔╝██║██║   ██║██║   ██║██╔══╝
  ╚██████╗██║  ██║██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║
-  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝    v0.8.0
+  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝    v0.9.0
 
   Architecture guardrails for AI-generated code
 
