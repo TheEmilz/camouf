@@ -1,4 +1,4 @@
-name: 'Camouf'
+name: 'Camouf - AI Code Guardrails'
 description: 'Architecture guardrails for AI-generated code. Catches broken contracts, phantom imports, and async issues.'
 author: 'TheEmilz'
 
