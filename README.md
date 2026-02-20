@@ -3,6 +3,7 @@
 [![npm downloads](https://img.shields.io/npm/dt/camouf.svg)](https://www.npmjs.com/package/camouf)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml/badge.svg)](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml)
+[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Marketplace-2088FF?logo=github-actions&logoColor=white)](https://github.com/marketplace/actions/camouf-architecture-guardrails-for-ai-generated-code)
 
 # Camouf
 
@@ -716,6 +717,55 @@ npx camouf validate --format json --ci
 
 ## CI/CD Integration
 
+### GitHub Actions (Marketplace)
+
+Camouf is available on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/camouf-architecture-guardrails-for-ai-generated-code). One step is all you need:
+
+```yaml
+name: Architecture Check
+on: [push, pull_request]
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: TheEmilz/camouf@v0.10.0
+```
+
+Camouf auto-detects your config, runs all enabled rules, annotates changed files in PR diffs, and uploads a report artifact.
+
+#### Target Specific Rules
+
+```yaml
+- uses: TheEmilz/camouf@v0.10.0
+  with:
+    rules: 'async-discrepancies,contract-mismatch'
+    fail-on: 'warn'
+```
+
+#### Async Safety Gate
+
+```yaml
+name: Async Safety
+on:
+  pull_request:
+    paths: ['**/*.ts', '**/*.js']
+
+jobs:
+  async-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: TheEmilz/camouf@v0.10.0
+        with:
+          rules: 'async-discrepancies'
+          fail-on: 'warn'
+          annotate: 'true'
+```
+
+See [CI/CD Integration Guide](docs/ci-cd-integration.md) for the full input/output reference, PR comments, GitLab CI, Jenkins, and Azure DevOps examples.
+
 ### Non-Interactive Mode
 
 Use `--ci` flag or `CAMOUF_CI=1` environment variable for agent/CI environments:
@@ -735,35 +785,6 @@ CAMOUF_CI=1 npx camouf validate
 
 - `0` — No violations found
 - `1` — Violations found (or error)
-
-### GitHub Actions
-
-```yaml
-name: Architecture Check
-on: [push, pull_request]
-
-jobs:
-  architecture:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      - run: npm ci
-      - run: npx camouf validate --strict
-```
-
-### GitLab CI
-
-```yaml
-architecture:
-  stage: test
-  image: node:18
-  script:
-    - npm ci
-    - npx camouf validate --strict
-```
 
 ## Multi-language Support
 

@@ -2,9 +2,11 @@
 
 Integrate Camouf into your continuous integration pipeline to catch architecture violations before they reach production.
 
-## GitHub Actions
+## GitHub Actions (Marketplace)
 
-Create `.github/workflows/architecture.yml`:
+Camouf is available on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/camouf-architecture-guardrails-for-ai-generated-code). Add it to any workflow with a single step.
+
+### Quick Start
 
 ```yaml
 name: Architecture Check
@@ -18,31 +20,133 @@ on:
 jobs:
   architecture:
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v4
-      
+      - uses: TheEmilz/camouf@v0.10.0
+```
+
+That is all that is needed. Camouf will auto-detect your `camouf.config.json`, run all enabled rules, generate a report artifact, and annotate changed files directly in the pull request diff.
+
+### Targeting Specific Rules
+
+To run only specific rules (for example, during gradual adoption or to focus on async safety):
+
+```yaml
+- uses: TheEmilz/camouf@v0.10.0
+  with:
+    rules: 'async-discrepancies,contract-mismatch,function-signature-matching'
+    fail-on: 'error'
+```
+
+### Async Discrepancies in CI
+
+The `async-discrepancies` rule is particularly effective in CI pipelines. AI-generated async code often compiles and passes basic tests, but introduces subtle runtime issues — floating promises, unnecessary async wrappers, or mixed `await`/`.then()` patterns that silently swallow errors.
+
+#### Example: Catch Async Issues on Every PR
+
+```yaml
+name: Async Safety
+
+on:
+  pull_request:
+    paths:
+      - '**/*.ts'
+      - '**/*.js'
+
+jobs:
+  async-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: TheEmilz/camouf@v0.10.0
+        with:
+          rules: 'async-discrepancies'
+          fail-on: 'warn'
+          annotate: 'true'
+```
+
+This runs the `async-discrepancies` rule on every pull request that modifies TypeScript or JavaScript files. Violations appear as inline annotations on the PR diff, making review straightforward.
+
+#### Example: Full Architecture Gate
+
+```yaml
+name: Architecture Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  camouf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: TheEmilz/camouf@v0.10.0
+        id: camouf
+        with:
+          fail-on: 'error'
+          max-warnings: '20'
+
+      - name: Post summary
+        if: always()
+        run: |
+          echo "Violations: ${{ steps.camouf.outputs.total-violations }}"
+          echo "Errors: ${{ steps.camouf.outputs.errors }}"
+          echo "Warnings: ${{ steps.camouf.outputs.warnings }}"
+```
+
+### Action Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `version` | `latest` | Camouf version to install |
+| `config` | auto-detect | Path to `camouf.config.json` |
+| `rules` | all enabled | Comma-separated list of rules to run |
+| `fail-on` | `error` | Minimum severity to fail: `error`, `warn`, or `off` |
+| `format` | `text` | Output format: `text`, `json`, or `vscode` |
+| `max-warnings` | unlimited | Maximum warnings before failing |
+| `working-directory` | `.` | Working directory for analysis |
+| `report-artifact` | `true` | Upload report as GitHub artifact |
+| `annotate` | `true` | Add inline annotations on PRs |
+
+### Action Outputs
+
+| Output | Description |
+|--------|-------------|
+| `total-violations` | Total number of violations found |
+| `errors` | Number of error-level violations |
+| `warnings` | Number of warning-level violations |
+| `report-path` | Path to the generated JSON report |
+| `exit-code` | Exit code (0 = clean, 1 = violations, 2 = config error) |
+
+### Manual Setup (Without Marketplace)
+
+If you prefer not to use the marketplace action, you can install Camouf directly:
+
+```yaml
+name: Architecture Check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Install Camouf
-        run: npm install -g camouf
-      
-      - name: Run architecture validation
-        run: camouf validate --format json --output camouf-report.json
-      
-      - name: Upload report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: camouf-report
-          path: camouf-report.json
+
+      - run: npm install -g camouf
+      - run: camouf validate
 ```
 
 ### With Pull Request Comments
@@ -84,7 +188,7 @@ jobs:
             const fs = require('fs');
             const report = JSON.parse(fs.readFileSync('report.json', 'utf8'));
             
-            let comment = `## 🏛️ Architecture Report\n\n`;
+            let comment = `## Architecture Report\n\n`;
             comment += `Found **${report.totalViolations}** violations.\n\n`;
             
             for (const [file, violations] of Object.entries(report.files)) {

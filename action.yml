@@ -1,0 +1,185 @@
+name: 'Camouf - Architecture Guardrails for AI-Generated Code'
+description: 'Detect broken contracts, phantom imports, signature drift, async discrepancies and architectural violations that traditional linters miss'
+author: 'TheEmilz'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'Camouf version to install (default: latest)'
+    required: false
+    default: 'latest'
+  config:
+    description: 'Path to camouf.config.json (default: auto-detect)'
+    required: false
+    default: ''
+  rules:
+    description: 'Comma-separated list of rules to enable (e.g. async-discrepancies,contract-mismatch)'
+    required: false
+    default: ''
+  fail-on:
+    description: 'Minimum severity to fail the workflow: error, warn, or off (default: error)'
+    required: false
+    default: 'error'
+  format:
+    description: 'Output format: text, json, or vscode (default: text)'
+    required: false
+    default: 'text'
+  max-warnings:
+    description: 'Maximum number of warnings before failing (default: unlimited)'
+    required: false
+    default: '-1'
+  working-directory:
+    description: 'Working directory for analysis (default: repository root)'
+    required: false
+    default: '.'
+  report-artifact:
+    description: 'Upload the report as a GitHub artifact (true/false, default: true)'
+    required: false
+    default: 'true'
+  annotate:
+    description: 'Add inline annotations to changed files in pull requests (true/false, default: true)'
+    required: false
+    default: 'true'
+
+outputs:
+  total-violations:
+    description: 'Total number of violations found'
+    value: ${{ steps.run-camouf.outputs.total_violations }}
+  errors:
+    description: 'Number of error-level violations'
+    value: ${{ steps.run-camouf.outputs.errors }}
+  warnings:
+    description: 'Number of warning-level violations'
+    value: ${{ steps.run-camouf.outputs.warnings }}
+  report-path:
+    description: 'Path to the generated JSON report'
+    value: ${{ steps.run-camouf.outputs.report_path }}
+  exit-code:
+    description: 'Exit code from camouf validate (0 = clean, 1 = violations, 2 = config error)'
+    value: ${{ steps.run-camouf.outputs.exit_code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Camouf
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          npm install -g camouf
+        else
+          npm install -g camouf@${{ inputs.version }}
+        fi
+        echo "Camouf $(camouf --version) installed"
+
+    - name: Run Camouf
+      id: run-camouf
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        REPORT_PATH="${{ runner.temp }}/camouf-report.json"
+        CMD="camouf validate --format json"
+
+        # Config file
+        if [ -n "${{ inputs.config }}" ]; then
+          CMD="$CMD --config ${{ inputs.config }}"
+        fi
+
+        # Specific rules
+        if [ -n "${{ inputs.rules }}" ]; then
+          CMD="$CMD --rules ${{ inputs.rules }}"
+        fi
+
+        # Max warnings
+        if [ "${{ inputs.max-warnings }}" != "-1" ]; then
+          CMD="$CMD --max-warnings ${{ inputs.max-warnings }}"
+        fi
+
+        # Fail-on level
+        if [ "${{ inputs.fail-on }}" = "warn" ]; then
+          CMD="$CMD --fail-on-error --fail-on-warn"
+        elif [ "${{ inputs.fail-on }}" = "off" ]; then
+          CMD="$CMD || true"
+        fi
+
+        echo "::group::Running Camouf analysis"
+        echo "Command: $CMD"
+
+        set +e
+        RESULT=$($CMD 2>&1)
+        EXIT_CODE=$?
+        set -e
+
+        echo "$RESULT"
+        echo "::endgroup::"
+
+        # Write JSON report
+        echo "$RESULT" > "$REPORT_PATH" 2>/dev/null || true
+
+        # Parse results
+        TOTAL=$(echo "$RESULT" | grep -oP '"totalViolations"\s*:\s*\K[0-9]+' || echo "0")
+        ERRORS=$(echo "$RESULT" | grep -oP '"errors"\s*:\s*\K[0-9]+' || echo "0")
+        WARNINGS=$(echo "$RESULT" | grep -oP '"warnings"\s*:\s*\K[0-9]+' || echo "0")
+
+        echo "total_violations=$TOTAL" >> $GITHUB_OUTPUT
+        echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+        echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+        echo "report_path=$REPORT_PATH" >> $GITHUB_OUTPUT
+        echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+        # Summary
+        echo "### Camouf Architecture Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "$TOTAL" = "0" ]; then
+          echo "No architecture violations detected." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total violations | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Warnings | $WARNINGS |" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+    - name: Create annotations
+      if: inputs.annotate == 'true' && steps.run-camouf.outputs.total_violations != '0'
+      shell: bash
+      run: |
+        REPORT="${{ steps.run-camouf.outputs.report_path }}"
+        if [ -f "$REPORT" ] && command -v jq &> /dev/null; then
+          # Parse JSON report and create GitHub annotations
+          jq -r '
+            .files // {} | to_entries[] |
+            .key as $file |
+            .value[] |
+            if .severity == "error" then
+              "::error file=\($file),line=\(.line // 1)::\(.rule // "camouf"): \(.message)"
+            else
+              "::warning file=\($file),line=\(.line // 1)::\(.rule // "camouf"): \(.message)"
+            end
+          ' "$REPORT" 2>/dev/null || true
+        fi
+
+    - name: Upload report artifact
+      if: inputs.report-artifact == 'true' && always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: camouf-report
+        path: ${{ steps.run-camouf.outputs.report_path }}
+        if-no-files-found: ignore
+
+    - name: Check result
+      shell: bash
+      run: |
+        EXIT_CODE=${{ steps.run-camouf.outputs.exit_code }}
+        if [ "${{ inputs.fail-on }}" != "off" ] && [ "$EXIT_CODE" != "0" ]; then
+          echo "::error::Camouf found architecture violations (exit code: $EXIT_CODE)"
+          exit $EXIT_CODE
+        fi
