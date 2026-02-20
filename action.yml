@@ -1,5 +1,5 @@
-name: 'Camouf - Architecture Guardrails for AI-Generated Code'
-description: 'Detect broken contracts, phantom imports, signature drift, async discrepancies and architectural violations that traditional linters miss'
+name: 'Camouf'
+description: 'Architecture guardrails for AI-generated code. Catches broken contracts, phantom imports, and async issues.'
 author: 'TheEmilz'
 
 branding:
