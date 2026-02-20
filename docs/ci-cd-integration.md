@@ -4,7 +4,7 @@ Integrate Camouf into your continuous integration pipeline to catch architecture
 
 ## GitHub Actions (Marketplace)
 
-Camouf is available on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/camouf-architecture-guardrails-for-ai-generated-code). Add it to any workflow with a single step.
+Camouf is available on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/camouf-ai-code-guardrails). Add it to any workflow with a single step.
 
 ### Quick Start
 

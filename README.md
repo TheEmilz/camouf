@@ -3,7 +3,7 @@
 [![npm downloads](https://img.shields.io/npm/dt/camouf.svg)](https://www.npmjs.com/package/camouf)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml/badge.svg)](https://github.com/TheEmilz/camouf/actions/workflows/ci.yml)
-[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Marketplace-2088FF?logo=github-actions&logoColor=white)](https://github.com/marketplace/actions/camouf-architecture-guardrails-for-ai-generated-code)
+[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Marketplace-2088FF?logo=github-actions&logoColor=white)](https://github.com/marketplace/actions/camouf-ai-code-guardrails)
 
 # Camouf
 
@@ -719,7 +719,7 @@ npx camouf validate --format json --ci
 
 ### GitHub Actions (Marketplace)
 
-Camouf is available on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/camouf-architecture-guardrails-for-ai-generated-code). One step is all you need:
+Camouf is available on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/camouf-ai-code-guardrails). One step is all you need:
 
 ```yaml
 name: Architecture Check
