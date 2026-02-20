@@ -30,6 +30,7 @@ import { FunctionSignatureMatchingRule } from './builtin/function-signature-matc
 import { HardcodedSecretsRule } from './builtin/hardcoded-secrets.rule.js';
 import { InconsistentCasingRule } from './builtin/inconsistent-casing.rule.js';
 import { OrphanedFunctionsRule } from './builtin/orphaned-functions.rule.js';
+import { AsyncDiscrepanciesRule } from './builtin/async-discrepancies.rule.js';
 
 export class RuleEngine {
   private config: CamoufConfig;
@@ -99,6 +100,7 @@ export class RuleEngine {
       new HardcodedSecretsRule(),
       new InconsistentCasingRule(),
       new OrphanedFunctionsRule(),
+      new AsyncDiscrepanciesRule(),
     ];
 
     for (const rule of builtinRules) {

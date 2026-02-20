@@ -21,6 +21,7 @@
       "performance-antipatterns": "off",
       "type-safety": "off",
       "hardcoded-secrets": "off",
+      "async-discrepancies": "warn",
       "security-context": "off"
     }
   },

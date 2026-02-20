@@ -153,6 +153,9 @@ export interface BuiltinRulesConfig {
   
   /** Function signature matching across boundaries */
   'function-signature-matching'?: RuleLevel;
+
+  /** Async/await discrepancies detection */
+  'async-discrepancies'?: RuleLevel;
 }
 
 export type RuleLevel = 'off' | 'warn' | 'error' | RuleLevelConfig;

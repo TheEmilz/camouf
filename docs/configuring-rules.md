@@ -1,6 +1,6 @@
 # Configuring Rules
 
-Camouf comes with 12 built-in rules. This guide explains how to configure each one.
+Camouf comes with 19 built-in rules. This guide explains how to configure each one.
 
 ## Rule Levels
 

@@ -106,7 +106,7 @@ npx camouf fix --id sig-001        # Fix a specific mismatch
 
 ## Features
 
-- **18 Built-in Rules**: AI-specific and architecture validation rules
+- **19 Built-in Rules**: AI-specific and architecture validation rules
 - **Function/Field Matching**: Fuzzy matching to detect AI naming drift
 - **Circular Dependency Detection**: Find and break dependency cycles
 - **Real-time Watch Mode**: Continuous architecture monitoring
@@ -157,7 +157,7 @@ Running `npx camouf` or `npx camouf help` displays the full interactive help:
  ██║     ███████║██╔████╔██║██║   ██║██║   ██║█████╗
  ██║     ██╔══██║██║╚██╔╝██║██║   ██║██║   ██║██╔══╝
  ╚██████╗██║  ██║██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║
-  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝    v0.9.0
+  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝    v0.10.0
 
   Architecture guardrails for AI-generated code
 
@@ -234,7 +234,7 @@ Running `npx camouf` or `npx camouf help` displays the full interactive help:
 
     AI Safety:          ai-hallucinated-imports, inconsistent-casing,
                         orphaned-functions, phantom-type-references,
-                        context-drift-patterns
+                        context-drift-patterns, async-discrepancies
     Architecture:       layer-dependencies, circular-dependencies,
                         function-signature-matching, contract-mismatch
     Code Quality:       type-safety, performance-antipatterns,
@@ -374,6 +374,7 @@ This creates a **feedback loop** where AI catches its own mistakes before you se
 - [AI Agent Challenges](docs/ai-agent-challenges.md)
 - [MCP Agent Tutorial](docs/mcp-agent-tutorial.md)
 - [Configuring Rules](docs/configuring-rules.md)
+- [Async Discrepancies Guide](docs/async-discrepancies.md)
 - [CI/CD Integration](docs/ci-cd-integration.md)
 - [Changelog](CHANGELOG.md)
 
@@ -495,6 +496,7 @@ These rules catch mistakes that AI coding assistants commonly make:
 | `phantom-type-references` | Catches references to types that don't exist | `warn` |
 | `inconsistent-casing` | Detects mixing of camelCase/snake_case in the same codebase | `warn` |
 | `orphaned-functions` | Finds functions declared but never called anywhere | `warn` |
+| `async-discrepancies` | Detects async/await misuse: floating promises, unnecessary async, mixed patterns | `warn` |
 
 > **See examples:** Check `test-fixtures/ai-errors/` in the repository for concrete examples of what each rule catches.
 

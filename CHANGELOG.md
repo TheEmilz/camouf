@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## camouf [0.10.0] - 2026-02-20
+
+### Added
+- **`async-discrepancies` rule** -- New builtin rule (19th) that detects async/await misuse patterns commonly introduced by AI coding assistants:
+  - Unnecessary `async` functions that never use `await`
+  - Floating promises (async calls without `await`, `.then()`, or `.catch()`)
+  - `await` on non-Promise values (literals, booleans, numbers)
+  - Mixed async patterns (`await` combined with `.then()` chains in the same function)
+  - Mixed async patterns (`await` combined with error-first callbacks)
+- **Async Discrepancies Guide** -- New documentation at `docs/async-discrepancies.md` covering the problem, detection categories, configuration, real-world scenarios, and a recommended complementary toolchain (ESLint, Biome, eslint-plugin-promise, TypeScript strict mode)
+- **Test fixture** -- `test-fixtures/ai-errors/async-discrepancies.ts` with realistic examples of each async discrepancy category
+
+### Changed
+- README updated: 19 builtin rules (was 18), added `async-discrepancies` to AI-Specific rules table and CLI reference, documentation list now links to the async discrepancies guide
+- CLI banner version updated to v0.10.0
+
+---
+
 ## camouf [0.9.0] - 2026-02-17
 
 ### Added
@@ -393,7 +411,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/TheEmilz/camouf/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/TheEmilz/camouf/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/TheEmilz/camouf/compare/v0.9.0...v0.10.0
 [0.2.0]: https://github.com/TheEmilz/camouf/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/TheEmilz/camouf/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/TheEmilz/camouf/compare/v0.1.2...v0.1.3
